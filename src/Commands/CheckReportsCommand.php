@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-class CheckFailureReportsCommand extends Command
+class CheckReportsCommand extends Command
 {
     protected $signature = 'shoutbomb:check-reports
                             {--dry-run : Display what would be processed without saving}
@@ -30,7 +30,7 @@ class CheckFailureReportsCommand extends Command
 
     public function handle(): int
     {
-        $this->info('Starting Shoutbomb failure report check...');
+        $this->info('Starting Shoutbomb report check...');
 
         try {
             // Get filters from config
@@ -58,7 +58,7 @@ class CheckFailureReportsCommand extends Command
             $this->newLine();
 
             $processedEmails = 0;
-            $processedFailures = 0;
+            $processedRecords = 0;
             $skippedCount = 0;
 
             foreach ($messages as $message) {
@@ -67,8 +67,8 @@ class CheckFailureReportsCommand extends Command
 
                     if ($result > 0) {
                         $processedEmails++;
-                        $processedFailures += $result;
-                        $this->line("✓ Processed: {$message['subject']} ({$result} failures)");
+                        $processedRecords += $result;
+                        $this->line("✓ Processed: {$message['subject']} ({$result} records)");
                     } else {
                         $skippedCount++;
                         $this->warn("✗ Skipped: {$message['subject']}");
@@ -76,7 +76,7 @@ class CheckFailureReportsCommand extends Command
                 } catch (\Exception $e) {
                     $skippedCount++;
                     $this->error("Error processing message: {$e->getMessage()}");
-                    Log::error('Failed to process failure report', [
+                    Log::error('Failed to process Shoutbomb report', [
                         'message_id' => $message['id'] ?? 'unknown',
                         'error' => $e->getMessage(),
                     ]);
@@ -89,7 +89,7 @@ class CheckFailureReportsCommand extends Command
                 ['Metric', 'Count'],
                 [
                     ['Emails Processed', $processedEmails],
-                    ['Individual Failures', $processedFailures],
+                    ['Records Extracted', $processedRecords],
                     ['Emails Skipped', $skippedCount],
                     ['Total Emails', count($messages)],
                 ]
@@ -97,8 +97,8 @@ class CheckFailureReportsCommand extends Command
 
             return self::SUCCESS;
         } catch (\Exception $e) {
-            $this->error("Failed to check failure reports: {$e->getMessage()}");
-            Log::error('Outlook failure report check failed', [
+            $this->error("Failed to check Shoutbomb reports: {$e->getMessage()}");
+            Log::error('Shoutbomb report check failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -107,20 +107,20 @@ class CheckFailureReportsCommand extends Command
     }
 
     /**
-     * Process a single message (which may contain multiple failures)
-     * Returns the number of failures processed
+     * Process a single message (which may contain multiple report records)
+     * Returns the number of records processed
      */
     protected function processMessage(array $message, array $filters): int
     {
         // Get message body
         $bodyContent = $this->graphApi->getMessageBody($message, 'text');
 
-        // Parse the message (returns array of failures)
-        $failures = $this->parser->parse($message, $bodyContent);
+        // Parse the message (returns array of report records)
+        $records = $this->parser->parse($message, $bodyContent);
 
-        if (empty($failures)) {
+        if (empty($records)) {
             if (config('shoutbomb-failure-reports.storage.log_processing')) {
-                Log::info('Skipped message - no failures parsed', [
+                Log::info('Skipped message - no records parsed', [
                     'subject' => $message['subject'] ?? 'unknown',
                 ]);
             }
@@ -139,26 +139,26 @@ class CheckFailureReportsCommand extends Command
 
         // Dry run mode - just display what would be saved
         if ($this->option('dry-run')) {
-            $this->displayParsedFailures($failures);
-            return count($failures);
+            $this->displayParsedRecords($records);
+            return count($records);
         }
 
-        // Save all failures to database
+        // Save all records to database
         $saved = 0;
         DB::beginTransaction();
         try {
-            foreach ($failures as $failure) {
-                // Validate each failure
-                if (!$this->parser->validate($failure)) {
+            foreach ($records as $record) {
+                // Validate each record
+                if (!$this->parser->validate($record)) {
                     continue;
                 }
 
                 // Check for duplicates
-                if ($this->isFailureDuplicate($failure)) {
+                if ($this->isRecordDuplicate($record)) {
                     continue;
                 }
 
-                NoticeFailureReport::create($failure);
+                NoticeFailureReport::create($record);
                 $saved++;
             }
 
@@ -177,7 +177,7 @@ class CheckFailureReportsCommand extends Command
             if (config('shoutbomb-failure-reports.storage.log_processing')) {
                 Log::info('Processed Shoutbomb report', [
                     'email_subject' => $message['subject'] ?? 'unknown',
-                    'failures_saved' => $saved,
+                    'records_saved' => $saved,
                 ]);
             }
 
@@ -197,44 +197,44 @@ class CheckFailureReportsCommand extends Command
     }
 
     /**
-     * Check if specific failure already exists
+     * Check if specific record already exists
      */
-    protected function isFailureDuplicate(array $failure): bool
+    protected function isRecordDuplicate(array $record): bool
     {
-        return NoticeFailureReport::where('outlook_message_id', $failure['outlook_message_id'])
-            ->where(function ($query) use ($failure) {
-                $query->where('patron_phone', $failure['patron_phone'])
-                    ->orWhere('patron_id', $failure['patron_id']);
+        return NoticeFailureReport::where('outlook_message_id', $record['outlook_message_id'])
+            ->where(function ($query) use ($record) {
+                $query->where('patron_phone', $record['patron_phone'])
+                    ->orWhere('patron_id', $record['patron_id']);
             })
             ->exists();
     }
 
     /**
-     * Display parsed failures in dry-run mode
+     * Display parsed records in dry-run mode
      */
-    protected function displayParsedFailures(array $failures): void
+    protected function displayParsedRecords(array $records): void
     {
         $this->newLine();
         $this->line("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        $this->info("Parsed " . count($failures) . " Failure(s) (Dry Run):");
+        $this->info("Parsed " . count($records) . " Record(s) (Dry Run):");
         $this->newLine();
 
-        foreach ($failures as $index => $failure) {
-            $this->line("Failure #" . ($index + 1));
+        foreach ($records as $index => $record) {
+            $this->line("Record #" . ($index + 1));
             $this->table(
                 ['Field', 'Value'],
                 [
-                    ['Subject', $failure['subject'] ?? 'N/A'],
-                    ['Patron Phone', $failure['patron_phone'] ?? 'N/A'],
-                    ['Patron ID', $failure['patron_id'] ?? 'N/A'],
-                    ['Patron Barcode', $failure['patron_barcode'] ?? 'N/A'],
-                    ['Patron Name', $failure['patron_name'] ?? 'N/A'],
-                    ['Notice Type', $failure['notice_type'] ?? 'N/A'],
-                    ['Failure Type', $failure['failure_type'] ?? 'N/A'],
-                    ['Failure Reason', $failure['failure_reason'] ?? 'N/A'],
-                    ['Notice Description', $failure['notice_description'] ?? 'N/A'],
-                    ['Attempt Count', $failure['attempt_count'] ?? 'N/A'],
-                    ['Received At', $failure['received_at'] ?? 'N/A'],
+                    ['Subject', $record['subject'] ?? 'N/A'],
+                    ['Patron Phone', $record['patron_phone'] ?? 'N/A'],
+                    ['Patron ID', $record['patron_id'] ?? 'N/A'],
+                    ['Patron Barcode', $record['patron_barcode'] ?? 'N/A'],
+                    ['Patron Name', $record['patron_name'] ?? 'N/A'],
+                    ['Notice Type', $record['notice_type'] ?? 'N/A'],
+                    ['Failure Type', $record['failure_type'] ?? 'N/A'],
+                    ['Failure Reason', $record['failure_reason'] ?? 'N/A'],
+                    ['Notice Description', $record['notice_description'] ?? 'N/A'],
+                    ['Attempt Count', $record['attempt_count'] ?? 'N/A'],
+                    ['Received At', $record['received_at'] ?? 'N/A'],
                 ]
             );
             $this->newLine();
