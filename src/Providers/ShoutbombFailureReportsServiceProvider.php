@@ -25,6 +25,11 @@ class ShoutbombFailureReportsServiceProvider extends ServiceProvider
                 config('shoutbomb-reports.graph')
             );
         });
+
+        // IMPORTANT: Register Artisan commands outside runningInConsole so web Artisan::call() can find them
+        $this->commands([
+            CheckReportsCommand::class,
+        ]);
     }
 
     /**
@@ -32,24 +37,20 @@ class ShoutbombFailureReportsServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Publish config
-        $this->publishes([
-            __DIR__ . '/../../config/shoutbomb-reports.php' => config_path('shoutbomb-reports.php'),
-        ], 'shoutbomb-reports-config');
+        // Only publishes should be in runningInConsole
+        if ($this->app->runningInConsole()) {
+            // Publish config
+            $this->publishes([
+                __DIR__ . '/../../config/shoutbomb-reports.php' => config_path('shoutbomb-reports.php'),
+            ], 'shoutbomb-reports-config');
 
-        // Publish migrations
-        $this->publishes([
-            __DIR__ . '/../database/migrations/' => database_path('migrations'),
-        ], 'shoutbomb-reports-migrations');
+            // Publish migrations
+            $this->publishes([
+                __DIR__ . '/../database/migrations/' => database_path('migrations'),
+            ], 'shoutbomb-reports-migrations');
+        }
 
         // Load migrations
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
-
-        // Register commands
-        if ($this->app->runningInConsole()) {
-            $this->commands([
-                CheckReportsCommand::class,
-            ]);
-        }
     }
 }
