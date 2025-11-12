@@ -140,6 +140,24 @@ The published config file (`config/shoutbomb-reports.php`) contains:
 
 You can customize parsing patterns for your specific failure report formats. Subject and sender filters are optional and can be left blank to process all emails from the monitored mailbox.
 
+## Using with dcplibrary/notices
+
+This package pairs with the dcplibrary/notices package to enrich verification for SMS/Voice notices.
+
+- Ensure this package is installed and migrations are run so the failure table exists (default: `notice_failure_reports`).
+- In your Notices app, enable the integration via either:
+  - `.env`: `NOTICES_SHOUTBOMB_REPORTS_ENABLED=true` (preferred explicit toggle), or
+  - `.env`: `SHOUTBOMB_LOG_PROCESSING=true` (fallback existing flag)
+- Configure the table name if different: `.env` `SHOUTBOMB_FAILURE_TABLE=notice_failure_reports`.
+- Optional date window (± hours) for matching failures around a notice date: `.env` `SHOUTBOMB_REPORTS_DATE_WINDOW_HOURS=24`.
+- Keep running your existing Shoutbomb submissions import via FTP. This integration only provides failure/undelivered signals; submissions still identify what was sent.
+
+Behavior in Notices:
+- If a matching failure row is found (by channel, phone last-10 digits, and time window), the notice is marked as Failed with the failure reason.
+- If the notice is known Submitted and no failure row is found in the window, delivery is marked Delivered (inferred).
+
+See the Notices docs for details: `docs/integrations/shoutbomb-reports.md` in the Notices repo.
+
 ## Usage
 
 ### Basic Command
