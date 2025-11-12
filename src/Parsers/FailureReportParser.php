@@ -190,45 +190,69 @@ class FailureReportParser
 
     /**
      * Parse Voice failure report (different format)
-     * Format: phone | patron_id | library_name | patron_name | notice_description
-     * Example: 8125739956 | 23307015354303| Daviess County Public Library| FLOREZ-ROBINSON, KATHERINE | Overdue item message
+     * Format: phone | patron_barcode | library_name | patron_name | [notice_description]
+     * Example: 2707021797 | 23307015339379 | Daviess County Public Library | GRIFFITH, CHARLES | Overdue item message
+     * Note: notice_description may be on the same line (after last pipe) or on the next line
      */
     protected function parseVoiceFailures(string $content, array $metadata): array
     {
         $failures = [];
         $lines = explode("\n", $content);
+        $pendingFailure = null;
 
-        foreach ($lines as $line) {
+        foreach ($lines as $index => $line) {
             $line = trim($line);
 
             // Skip empty lines and header lines
-            if (empty($line) || stripos($line, 'Hello') !== false || stripos($line, 'Date:') !== false) {
+            if (empty($line) || stripos($line, 'Hello') !== false ||
+                stripos($line, 'Date:') !== false || stripos($line, 'Subject:') !== false ||
+                stripos($line, 'From:') !== false || stripos($line, 'To:') !== false) {
                 continue;
             }
 
             // Check if line contains pipe-delimited data
-            if (strpos($line, '|') === false) {
-                continue;
+            if (strpos($line, '|') !== false) {
+                // If we have a pending failure, save it before processing new line
+                if ($pendingFailure !== null) {
+                    $failures[] = $pendingFailure;
+                    $pendingFailure = null;
+                }
+
+                // Parse the line format: phone | patron_barcode | library | patron_name | [notice_description]
+                $parts = array_map('trim', explode('|', $line));
+
+                if (count($parts) >= 4) {
+                    $failure = array_merge($metadata, [
+                        'patron_phone' => $parts[0] ?? null,
+                        'patron_id' => null,
+                        'patron_barcode' => $parts[1] ?? null,
+                        'patron_name' => $parts[3] ?? null,
+                        'notice_description' => !empty($parts[4]) ? $parts[4] : null,
+                        'attempt_count' => null,
+                        'notice_type' => 'Voice',
+                        'failure_reason' => 'Voice notice not delivered',
+                        'failure_type' => 'voice-not-delivered',
+                    ]);
+
+                    // If notice_description is empty, mark as pending to check next line
+                    if (empty($failure['notice_description'])) {
+                        $pendingFailure = $failure;
+                    } else {
+                        $failures[] = $failure;
+                    }
+                }
+            } elseif ($pendingFailure !== null && !empty($line)) {
+                // This line might be the notice description for the previous record
+                // Only use it if it looks like a notice type (not an email header)
+                $pendingFailure['notice_description'] = $line;
+                $failures[] = $pendingFailure;
+                $pendingFailure = null;
             }
+        }
 
-            // Parse the line format: phone | patron_id | library | patron_name | notice_type
-            $parts = array_map('trim', explode('|', $line));
-
-            if (count($parts) >= 4) {
-                $failure = array_merge($metadata, [
-                    'patron_phone' => $parts[0] ?? null,
-                    'patron_id' => $parts[1] ?? null,
-                    'patron_barcode' => null,
-                    'patron_name' => $parts[3] ?? null,
-                    'notice_description' => $parts[4] ?? null,
-                    'attempt_count' => null,
-                    'notice_type' => 'Voice',
-                    'failure_reason' => 'Voice notice not delivered',
-                    'failure_type' => 'voice-not-delivered',
-                ]);
-
-                $failures[] = $failure;
-            }
+        // Add any remaining pending failure
+        if ($pendingFailure !== null) {
+            $failures[] = $pendingFailure;
         }
 
         return $failures;
