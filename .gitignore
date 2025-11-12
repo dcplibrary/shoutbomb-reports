@@ -1,7 +1,7 @@
-node_modules/
-.env
-logs/*.log
-*.log
+vendor/
+composer.lock
+.phpunit.result.cache
 .DS_Store
-.vscode/
 .idea/
+.vscode/
+*.log

@@ -1,307 +1,454 @@
-# Email Ingestion Service
+# Outlook Failure Reports Package
 
-A robust email ingestion service that receives emails via SMTP and stores them in a database. This service supports multiple database backends (MySQL, PostgreSQL, MSSQL) and provides comprehensive email parsing with attachment handling.
+A Laravel package for reading and parsing email delivery failure reports from Microsoft 365 Outlook using the Microsoft Graph API. Designed specifically to integrate with the [DC Public Library Notices Package](https://github.com/dcplibrary/notices) to track SMS and Voice notification failures.
+
+## Overview
+
+This package automatically:
+- Connects to your Microsoft 365 Outlook mailbox
+- Reads delivery failure reports (bounced emails, undelivered SMS/Voice notifications)
+- Parses the failure details (recipient, reason, error codes)
+- Stores the data in your database for verification and reporting
+- Integrates with your existing notice verification workflow
+
+## Why This Package?
+
+When SMS or Voice notices fail to deliver, providers like Shoutbomb send failure reports via email. This package:
+- **Automates** the manual process of checking failure emails
+- **Extracts** critical information (patron ID, phone number, failure reason)
+- **Stores** data in a structured format for analysis
+- **Integrates** with your notice verification system
 
 ## Features
 
-- **SMTP Server**: Built-in SMTP server to receive emails
-- **Email Parsing**: Complete email parsing including headers, body (text/HTML), and attachments
-- **Multiple Database Support**: MySQL, PostgreSQL, and Microsoft SQL Server
-- **Error Handling**: Comprehensive error handling and validation
-- **Logging**: Detailed logging system with file output
-- **Attachment Support**: Base64 encoded attachment storage
-- **Configurable**: Environment-based configuration
-- **Authentication**: Optional SMTP authentication
+- ✅ **Microsoft Graph API Integration** - Secure, OAuth2-based authentication
+- ✅ **Smart Parsing** - Extracts recipient, failure reason, error codes, and notice-specific data
+- ✅ **Configurable Filtering** - Filter by subject, sender, folder, or read status
+- ✅ **Duplicate Prevention** - Automatically skips already-processed emails
+- ✅ **Dry Run Mode** - Test parsing without saving to database
+- ✅ **Auto-organization** - Mark as read, move to folders after processing
+- ✅ **Extensible** - Easy to customize parsing for different failure report formats
 
-## Architecture
+## Requirements
 
-The service consists of several key components:
-
-1. **SMTP Server** (`src/server/smtpServer.js`): Receives incoming emails
-2. **Email Processor** (`src/parsers/emailProcessor.js`): Parses and validates email data
-3. **Database Manager** (`src/database/dbManager.js`): Handles database operations for multiple database types
-4. **Logger** (`src/utils/logger.js`): Provides logging functionality
-5. **Configuration** (`src/config/config.js`): Centralized configuration management
-
-## Prerequisites
-
-- Node.js (v14 or higher)
-- One of the following databases:
-  - MySQL 5.7+
-  - PostgreSQL 10+
-  - Microsoft SQL Server 2016+
+- PHP 8.1 or higher
+- Laravel 10.x or 11.x
+- Microsoft 365 account with Outlook
+- Azure AD application (for Graph API access)
 
 ## Installation
 
-1. Clone the repository:
+### 1. Install via Composer
+
 ```bash
-git clone <repository-url>
-cd email-ingester
+composer require dcplibrary/outlook-failure-reports
 ```
 
-2. Install dependencies:
+### 2. Publish Configuration
+
 ```bash
-npm install
+php artisan vendor:publish --tag=outlook-failure-reports-config
 ```
 
-3. Set up your database:
+This creates `config/outlook-failure-reports.php`
 
-Choose the appropriate schema file for your database:
+### 3. Publish Migrations
 
-**MySQL:**
 ```bash
-mysql -u root -p < database/schema-mysql.sql
+php artisan vendor:publish --tag=outlook-failure-reports-migrations
+php artisan migrate
 ```
 
-**PostgreSQL:**
-```bash
-psql -U postgres -f database/schema-postgresql.sql
-```
+This creates the `notice_failure_reports` table.
 
-**Microsoft SQL Server:**
-```bash
-sqlcmd -S localhost -U sa -i database/schema-mssql.sql
-```
+## Azure AD Setup
 
-4. Configure the application:
+### 1. Register Application in Azure
 
-Copy the example environment file and edit it:
-```bash
-cp .env.example .env
-```
+1. Go to [Azure Portal](https://portal.azure.com)
+2. Navigate to **Azure Active Directory** → **App registrations**
+3. Click **New registration**
+4. Name: "Outlook Failure Reports"
+5. Supported account types: "Accounts in this organizational directory only"
+6. Click **Register**
 
-Edit `.env` with your configuration:
+### 2. Configure API Permissions
+
+1. Go to **API permissions**
+2. Click **Add a permission**
+3. Select **Microsoft Graph** → **Application permissions**
+4. Add these permissions:
+   - `Mail.Read` (Read mail in all mailboxes)
+   - `Mail.ReadWrite` (if you want to mark as read/move emails)
+5. Click **Grant admin consent**
+
+### 3. Create Client Secret
+
+1. Go to **Certificates & secrets**
+2. Click **New client secret**
+3. Description: "Outlook Failure Reports"
+4. Expiration: Choose appropriate duration
+5. Click **Add**
+6. **Copy the secret value immediately** (you won't see it again!)
+
+### 4. Get IDs
+
+From the **Overview** page, copy:
+- **Application (client) ID**
+- **Directory (tenant) ID**
+
+## Configuration
+
+### Environment Variables
+
+Add these to your `.env` file:
+
 ```env
-# SMTP Configuration
-SMTP_HOST=0.0.0.0
-SMTP_PORT=2525
+# Azure AD Configuration
+OUTLOOK_TENANT_ID=your-tenant-id
+OUTLOOK_CLIENT_ID=your-client-id
+OUTLOOK_CLIENT_SECRET=your-client-secret
 
-# Database Configuration
-DB_TYPE=mysql
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=your_password
-DB_NAME=email_ingester
+# User mailbox to monitor
+OUTLOOK_USER_EMAIL=your-email@dcplibrary.org
+
+# Email Filtering
+OUTLOOK_FOLDER=null                    # null for inbox, or folder name
+OUTLOOK_SUBJECT_FILTER=Undelivered     # Filter by subject
+OUTLOOK_FROM_FILTER=postmaster@,mailer-daemon@
+OUTLOOK_MAX_EMAILS=50
+OUTLOOK_UNREAD_ONLY=true
+OUTLOOK_MARK_AS_READ=true
+OUTLOOK_MOVE_TO_FOLDER=null            # Move to folder after processing
+
+# Storage
+OUTLOOK_FAILURE_TABLE=notice_failure_reports
+OUTLOOK_STORE_RAW=false                # Store raw email content (for debugging)
+OUTLOOK_LOG_PROCESSING=true
 ```
 
-## Configuration Options
+### Config File
 
-### SMTP Server Configuration
+The published config file (`config/outlook-failure-reports.php`) contains:
 
-- `SMTP_HOST`: Host to bind the SMTP server (default: 0.0.0.0)
-- `SMTP_PORT`: Port for the SMTP server (default: 2525)
-- `SMTP_SECURE`: Enable TLS/SSL (default: false)
-- `SMTP_REQUIRE_AUTH`: Require authentication (default: false)
-- `SMTP_AUTH_OPTIONAL`: Make authentication optional (default: true)
-- `SMTP_USERNAME`: Username for SMTP authentication
-- `SMTP_PASSWORD`: Password for SMTP authentication
+- **Graph API settings** - Tenant, client credentials, API version
+- **Filtering rules** - Subject, sender, folder filters
+- **Parsing patterns** - Regex patterns for extracting data
+- **Storage options** - Table name, logging preferences
 
-### Database Configuration
-
-- `DB_TYPE`: Database type (mysql, postgresql, or mssql)
-- `DB_HOST`: Database host
-- `DB_PORT`: Database port
-- `DB_USER`: Database user
-- `DB_PASSWORD`: Database password
-- `DB_NAME`: Database name
-- `DB_ENCRYPT`: Enable encryption for MSSQL (default: true)
-- `DB_TRUST_CERT`: Trust server certificate for MSSQL (default: true)
-
-### Application Configuration
-
-- `DEBUG`: Enable debug logging (default: false)
-- `MAX_EMAIL_SIZE`: Maximum email size in bytes (default: 10485760 = 10MB)
+You can customize parsing patterns for your specific failure report formats.
 
 ## Usage
 
-### Start the service:
+### Basic Command
+
+Check for new failure reports and process them:
 
 ```bash
-npm start
+php artisan outlook:check-failure-reports
 ```
 
-For development with auto-restart:
+### Command Options
+
 ```bash
-npm run dev
+# Dry run - see what would be processed without saving
+php artisan outlook:check-failure-reports --dry-run
+
+# Limit number of emails to process
+php artisan outlook:check-failure-reports --limit=10
+
+# Force mark as read (override config)
+php artisan outlook:check-failure-reports --mark-read
 ```
 
-### Send a test email:
+### Scheduled Execution
 
-You can test the service using any SMTP client or command-line tool:
+Add to `app/Console/Kernel.php`:
 
-**Using `swaks` (Swiss Army Knife SMTP):**
-```bash
-swaks --to recipient@example.com \
-      --from sender@example.com \
-      --server localhost:2525 \
-      --header "Subject: Test Email" \
-      --body "This is a test email"
+```php
+protected function schedule(Schedule $schedule)
+{
+    // Check every 15 minutes during business hours
+    $schedule->command('outlook:check-failure-reports')
+        ->everyFifteenMinutes()
+        ->weekdays()
+        ->between('8:00', '18:00');
+
+    // Or check every hour
+    $schedule->command('outlook:check-failure-reports')
+        ->hourly();
+}
 ```
 
-**Using Python:**
-```python
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+### Programmatic Usage
 
-msg = MIMEMultipart()
-msg['From'] = 'sender@example.com'
-msg['To'] = 'recipient@example.com'
-msg['Subject'] = 'Test Email'
-msg.attach(MIMEText('This is a test email', 'plain'))
+```php
+use Dcplibrary\OutlookFailureReports\Services\GraphApiService;
+use Dcplibrary\OutlookFailureReports\Parsers\FailureReportParser;
 
-server = smtplib.SMTP('localhost', 2525)
-server.send_message(msg)
-server.quit()
+// Get messages
+$graphApi = app(GraphApiService::class);
+$messages = $graphApi->getMessages([
+    'unread_only' => true,
+    'max_emails' => 10,
+]);
+
+// Parse a message
+$parser = new FailureReportParser();
+$parsedData = $parser->parse($message);
 ```
 
-**Using Node.js (nodemailer):**
-```javascript
-const nodemailer = require('nodemailer');
+## Integration with Notices Package
 
-const transporter = nodemailer.createTransport({
-  host: 'localhost',
-  port: 2525,
-  secure: false
-});
+### Linking Failure Reports to Notices
 
-transporter.sendMail({
-  from: 'sender@example.com',
-  to: 'recipient@example.com',
-  subject: 'Test Email',
-  text: 'This is a test email'
-});
+The failure reports can be linked to your notices via:
+
+1. **Recipient Email** - Match against patron email in notices
+2. **Patron Identifier** - Extracted phone number or patron ID
+3. **Original Message ID** - Link to original notice message ID
+
+Example query:
+
+```php
+use Dcplibrary\OutlookFailureReports\Models\NoticeFailureReport;
+
+// Get recent SMS failures
+$smsFailures = NoticeFailureReport::byNoticeType('SMS')
+    ->recent(7)
+    ->get();
+
+// Get failures for specific patron
+$patronFailures = NoticeFailureReport::where('patron_identifier', $phoneNumber)
+    ->orderBy('received_at', 'desc')
+    ->get();
+
+// Get unprocessed failures
+$unprocessed = NoticeFailureReport::unprocessed()->get();
+```
+
+### Adding to Verification Workflow
+
+You can create a custom verification step in your notices package:
+
+```php
+// In your notices verification logic
+use Dcplibrary\OutlookFailureReports\Models\NoticeFailureReport;
+
+public function verifyNoticeDelivery($notice)
+{
+    // Check if there's a failure report for this notice
+    $failure = NoticeFailureReport::where('patron_identifier', $notice->patron_phone)
+        ->where('received_at', '>=', $notice->sent_at)
+        ->first();
+
+    if ($failure) {
+        $notice->status = 'failed';
+        $notice->failure_reason = $failure->failure_reason;
+        $notice->save();
+
+        // Mark failure report as processed
+        $failure->markAsProcessed();
+    }
+}
 ```
 
 ## Database Schema
 
-The service creates a single `emails` table with the following structure:
+The `notice_failure_reports` table contains:
 
 | Column | Type | Description |
 |--------|------|-------------|
-| id | INT/SERIAL | Primary key |
-| message_id | VARCHAR | Email message ID |
-| from_address | VARCHAR | Sender email address |
-| to_address | VARCHAR | Recipient email address |
-| cc_address | VARCHAR | CC addresses |
-| bcc_address | VARCHAR | BCC addresses |
-| subject | VARCHAR | Email subject |
-| body_text | TEXT | Plain text body |
-| body_html | TEXT | HTML body |
-| received_date | DATETIME | Date email was received |
-| attachments_count | INT | Number of attachments |
-| attachments_data | TEXT | JSON array of attachment data |
-| headers | JSON/TEXT | Email headers |
-| priority | VARCHAR | Email priority |
-| created_at | TIMESTAMP | Record creation timestamp |
+| id | bigint | Primary key |
+| outlook_message_id | string | Unique Outlook message ID |
+| original_message_id | string | Original notice message ID |
+| subject | string | Email subject |
+| from_address | string | Sender email |
+| recipient_email | string | Failed recipient email |
+| patron_identifier | string | Phone number or patron ID |
+| notice_type | string | SMS, Voice, or Email |
+| failure_reason | text | Why delivery failed |
+| error_code | string | SMTP/Error code (e.g., 550) |
+| received_at | timestamp | When failure report received |
+| processed_at | timestamp | When linked to notice |
+| raw_content | text | Raw email content (optional) |
+| created_at | timestamp | Record creation |
+| updated_at | timestamp | Record update |
 
-## Logging
+## Customizing Parsing
 
-Logs are stored in the `logs/` directory:
+### Custom Patterns
 
-- `info.log`: Informational messages
-- `warn.log`: Warning messages
-- `error.log`: Error messages
-- `debug.log`: Debug messages (when DEBUG=true)
-- `all.log`: All messages combined
+Edit `config/outlook-failure-reports.php` to add custom regex patterns:
 
-## Error Handling
+```php
+'parsing' => [
+    'recipient_patterns' => [
+        '/Your custom pattern here/i',
+        // ...
+    ],
+    'reason_patterns' => [
+        '/Another custom pattern/i',
+        // ...
+    ],
+],
+```
 
-The service includes comprehensive error handling:
+### Extending the Parser
 
-1. **Email Validation**: Validates required fields (from, to, date)
-2. **Email Format Validation**: Basic email address format checking
-3. **Database Errors**: Catches and logs database connection and insertion errors
-4. **SMTP Errors**: Handles SMTP protocol errors
-5. **Graceful Shutdown**: Properly closes connections on SIGINT/SIGTERM
+Create a custom parser:
 
-## Security Considerations
+```php
+use Dcplibrary\OutlookFailureReports\Parsers\FailureReportParser;
 
-1. **Authentication**: Enable SMTP authentication for production use
-2. **TLS/SSL**: Enable secure mode for encrypted connections
-3. **Network**: Bind to localhost (127.0.0.1) if not accepting external emails
-4. **Database**: Use strong database credentials and restrict access
-5. **Validation**: The service validates email data before insertion
-6. **Size Limits**: Configure MAX_EMAIL_SIZE to prevent memory issues
+class CustomFailureParser extends FailureReportParser
+{
+    protected function extractNoticeSpecificData(string $content, array $message): array
+    {
+        $data = parent::extractNoticeSpecificData($content, $message);
+
+        // Add your custom extraction logic
+        if (preg_match('/Library Card: (\d+)/', $content, $matches)) {
+            $data['library_card'] = $matches[1];
+        }
+
+        return $data;
+    }
+}
+```
 
 ## Troubleshooting
 
-### Cannot connect to database
-- Verify database credentials in `.env`
-- Ensure database server is running
-- Check database name exists
-- Verify network connectivity
+### Common Issues
 
-### SMTP server won't start
-- Check if port is already in use: `netstat -an | grep <port>`
-- Ensure you have permission to bind to the port (ports < 1024 require root)
-- Check firewall settings
+**"Unauthorized" or "Access Denied"**
+- Verify Azure AD app permissions are granted
+- Ensure admin consent was granted
+- Check tenant ID and client ID are correct
 
-### Emails not being stored
-- Check logs in `logs/error.log`
-- Verify database connection is established
-- Ensure database table exists
-- Check email validation isn't failing
+**"No emails found"**
+- Check filter settings in config
+- Verify user email is correct
+- Test with `--dry-run` to see what would be processed
 
-### Port permission denied
-If you get "EACCES" error on Linux for ports < 1024, either:
-- Use a port >= 1024 (e.g., 2525)
-- Run with sudo (not recommended)
-- Use authbind or setcap
+**"Failed to parse"**
+- Enable raw content storage: `OUTLOOK_STORE_RAW=true`
+- Check logs: `storage/logs/laravel.log`
+- Adjust parsing patterns in config
 
-## Production Deployment
+**Token expired**
+- Tokens are cached for 50 minutes
+- Clear cache: `php artisan cache:clear`
 
-For production deployment:
+### Debug Mode
 
-1. Use a process manager like PM2:
+Enable debug logging:
+
+```env
+OUTLOOK_LOG_PROCESSING=true
+OUTLOOK_STORE_RAW=true
+LOG_LEVEL=debug
+```
+
+Run with dry-run to see parsed data:
+
 ```bash
-npm install -g pm2
-pm2 start src/index.js --name email-ingester
-pm2 save
-pm2 startup
+php artisan outlook:check-failure-reports --dry-run
 ```
 
-2. Enable TLS/SSL:
-```env
-SMTP_SECURE=true
+## Security Considerations
+
+- Store Azure credentials securely (use `.env`, never commit)
+- Use application permissions (not delegated) for unattended operation
+- Regularly rotate client secrets
+- Monitor API usage in Azure portal
+- Consider using Azure Key Vault for production secrets
+
+## Testing
+
+Create a test failure report email and send it to your monitored inbox, then run:
+
+```bash
+php artisan outlook:check-failure-reports --dry-run
 ```
 
-3. Enable authentication:
-```env
-SMTP_REQUIRE_AUTH=true
-SMTP_USERNAME=your_username
-SMTP_PASSWORD=your_secure_password
+Verify the parsing is correct before running without `--dry-run`.
+
+## API Reference
+
+### GraphApiService
+
+```php
+// Get access token
+$token = $graphApi->getAccessToken();
+
+// Get messages with filters
+$messages = $graphApi->getMessages([
+    'unread_only' => true,
+    'subject_contains' => 'Undelivered',
+    'max_emails' => 50,
+]);
+
+// Get single message
+$message = $graphApi->getMessage($messageId);
+
+// Mark as read
+$graphApi->markAsRead($messageId);
+
+// Move to folder
+$graphApi->moveMessage($messageId, 'Processed');
+
+// Get message body
+$body = $graphApi->getMessageBody($message, 'text');
 ```
 
-4. Use a reverse proxy (nginx) for additional security
-5. Set up log rotation for log files
-6. Monitor using PM2 or similar tools
-7. Set up database backups
+### FailureReportParser
 
-## API Integration
+```php
+// Parse email
+$parsedData = $parser->parse($message, $bodyContent);
 
-To integrate with your application, query the `emails` table:
-
-```sql
--- Get recent emails
-SELECT * FROM emails ORDER BY received_date DESC LIMIT 10;
-
--- Search by sender
-SELECT * FROM emails WHERE from_address LIKE '%example.com%';
-
--- Get emails with attachments
-SELECT * FROM emails WHERE attachments_count > 0;
+// Validate parsed data
+$isValid = $parser->validate($parsedData);
 ```
+
+### NoticeFailureReport Model
+
+```php
+// Query scopes
+NoticeFailureReport::unprocessed()->get();
+NoticeFailureReport::byNoticeType('SMS')->get();
+NoticeFailureReport::recent(7)->get();
+
+// Mark as processed
+$report->markAsProcessed();
+```
+
+## Roadmap
+
+- [ ] Support for multiple mailboxes
+- [ ] Webhook support (instead of polling)
+- [ ] Integration with specific Shoutbomb failure report formats
+- [ ] Dashboard for viewing failure reports
+- [ ] Export failure reports to CSV
+- [ ] Automatic patron notification blocking
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please submit pull requests to the repository.
 
 ## License
 
-ISC
+MIT License
 
 ## Support
 
-For issues and questions, please open an issue on the repository.
+For issues specific to this package, please open an issue on GitHub.
+
+For Azure AD / Graph API questions, refer to [Microsoft Graph documentation](https://docs.microsoft.com/en-us/graph/).
+
+## Credits
+
+Created by [Brian Lashbrook](mailto:blashbrook@dcplibrary.org) for DC Public Library.
+
+Integrates with [DC Public Library Notices Package](https://github.com/dcplibrary/notices).
