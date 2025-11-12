@@ -23,6 +23,8 @@ Shoutbomb sends various report emails including failure reports and monthly summ
 
 - ✅ **Microsoft Graph API Integration** - Secure, OAuth2-based authentication
 - ✅ **Smart Parsing** - Extracts recipient, failure reason, error codes, and notice-specific data
+- ✅ **Multiple Report Types** - Handles daily SMS/Voice failures and monthly comprehensive reports
+- ✅ **Fuzzy Matching** - Supports partial barcode matching for redacted monthly report data
 - ✅ **Configurable Filtering** - Filter by subject, sender, folder, or read status
 - ✅ **Duplicate Prevention** - Automatically skips already-processed emails
 - ✅ **Dry Run Mode** - Test parsing without saving to database

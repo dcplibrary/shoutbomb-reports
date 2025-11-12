@@ -16,6 +16,7 @@ class NoticeFailureReport extends Model
         'patron_phone',
         'patron_id',
         'patron_barcode',
+        'barcode_partial',
         'patron_name',
         'notice_type',
         'failure_type',
@@ -31,6 +32,7 @@ class NoticeFailureReport extends Model
         'received_at' => 'datetime',
         'processed_at' => 'datetime',
         'attempt_count' => 'integer',
+        'barcode_partial' => 'boolean',
     ];
 
     /**
@@ -124,5 +126,29 @@ class NoticeFailureReport extends Model
     public function isInvalid(): bool
     {
         return $this->failure_type === 'invalid';
+    }
+
+    /**
+     * Check if this has a partial (redacted) barcode
+     */
+    public function hasPartialBarcode(): bool
+    {
+        return $this->barcode_partial === true;
+    }
+
+    /**
+     * Scope to get reports with partial barcodes only
+     */
+    public function scopePartialBarcodes($query)
+    {
+        return $query->where('barcode_partial', true);
+    }
+
+    /**
+     * Scope to get invalid/removed barcodes
+     */
+    public function scopeInvalidBarcodes($query)
+    {
+        return $query->where('failure_type', 'invalid-barcode-removed');
     }
 }

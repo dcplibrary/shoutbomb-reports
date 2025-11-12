@@ -55,8 +55,21 @@ class FailureReportParser
         if (stripos($subject, 'Voice notices that were not delivered') !== false) {
             // Voice failure report format
             $failures = $this->parseVoiceFailures($bodyContent, $metadata);
+        } elseif (stripos($subject, 'Shoutbomb Rpt') !== false) {
+            // Monthly report format - parse multiple sections
+
+            // Invalid/removed patron barcodes (redacted format)
+            $invalidBarcodes = $this->parseInvalidBarcodesSection($bodyContent, $metadata);
+            $failures = array_merge($failures, $invalidBarcodes);
+
+            // Daily sections may also be present in monthly reports
+            $optedOutFailures = $this->parseOptedOutSection($bodyContent, $metadata);
+            $failures = array_merge($failures, $optedOutFailures);
+
+            $invalidFailures = $this->parseInvalidSection($bodyContent, $metadata);
+            $failures = array_merge($failures, $invalidFailures);
         } else {
-            // SMS failure report format
+            // Daily SMS failure report format
             // Parse opted-out patrons
             $optedOutFailures = $this->parseOptedOutSection($bodyContent, $metadata);
             $failures = array_merge($failures, $optedOutFailures);
@@ -222,6 +235,56 @@ class FailureReportParser
     }
 
     /**
+     * Parse invalid/removed patron barcodes section from monthly reports
+     * Format: XXXXXXXXXX#### (last 4 digits visible)
+     * Example: XXXXXXXXXX2144
+     */
+    protected function parseInvalidBarcodesSection(string $content, array $metadata): array
+    {
+        $failures = [];
+
+        // Find the invalid barcodes section
+        // Look for: "patron barcodes found to no longer be valid and have been removed"
+        if (preg_match('/patron barcodes.*?no longer be valid.*?removed.*?\n(.*?)(?=\n\s*\.{20,}|\n\s*The following are patrons|$)/is', $content, $sectionMatch)) {
+            $section = $sectionMatch[1];
+            $lines = explode("\n", $section);
+
+            foreach ($lines as $line) {
+                $line = trim($line);
+
+                // Skip empty lines and separators
+                if (empty($line) || preg_match('/^[*.=-]+$/', $line)) {
+                    continue;
+                }
+
+                // Match redacted barcode pattern: XXXXXXXXXX#### (10 X's + 4 digits)
+                if (preg_match('/X{5,}(\d{4})/', $line, $matches)) {
+                    $lastFourDigits = $matches[1];
+
+                    $failure = array_merge($metadata, [
+                        'patron_phone' => null,
+                        'patron_id' => null,
+                        'patron_barcode' => $lastFourDigits, // Store just the last 4 digits
+                        'barcode_partial' => true, // Flag as partial for fuzzy matching
+                        'patron_name' => null,
+                        'attempt_count' => null,
+                        'notice_type' => null,
+                        'notice_description' => null,
+                        'failure_reason' => 'Patron barcode removed from system - no longer valid',
+                        'failure_type' => 'invalid-barcode-removed',
+                    ]);
+
+                    $failures[] = $failure;
+
+                    Log::debug("Parsed invalid barcode (partial): {$lastFourDigits}");
+                }
+            }
+        }
+
+        return $failures;
+    }
+
+    /**
      * Get human-readable failure reason
      */
     protected function getFailureReason(string $failureType): string
@@ -230,6 +293,7 @@ class FailureReportParser
             'opted-out' => 'Patron opted-out from SMS/MMS messages',
             'invalid' => 'Invalid phone number',
             'voice-not-delivered' => 'Voice notice not delivered',
+            'invalid-barcode-removed' => 'Patron barcode removed from system - no longer valid',
             default => 'Unknown failure',
         };
     }
@@ -239,7 +303,12 @@ class FailureReportParser
      */
     public function validate(array $parsedData): bool
     {
-        // At minimum, we need patron phone or patron ID
+        // For partial barcodes, we only need the last 4 digits
+        if (!empty($parsedData['barcode_partial']) && !empty($parsedData['patron_barcode'])) {
+            return true;
+        }
+
+        // For regular failures, we need patron phone or patron ID
         if (empty($parsedData['patron_phone']) && empty($parsedData['patron_id'])) {
             Log::warning('Failed to parse critical data from failure line');
             return false;

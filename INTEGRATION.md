@@ -34,11 +34,17 @@ This document explains how to integrate the `shoutbomb-reports` package with the
 **`notice_failure_reports`** - Parsed from Shoutbomb email reports
 - `patron_phone` - Phone number from failure email
 - `patron_id` - Polaris patron ID
-- `patron_barcode` - Library card barcode
+- `patron_barcode` - Library card barcode (full or last 4 digits)
+- `barcode_partial` - Boolean flag indicating if barcode is partial (last 4 digits only)
 - `notice_type` - SMS, Voice
-- `failure_type` - opted-out, invalid, voice-not-delivered
+- `failure_type` - opted-out, invalid, voice-not-delivered, invalid-barcode-removed
 - `failure_reason` - Human-readable reason
 - `received_at` - When failure email was received
+
+**Report Types Handled:**
+1. **Daily SMS Failures** - Full data with opted-out and invalid phone numbers
+2. **Daily Voice Failures** - Full data for voice notices not delivered
+3. **Monthly Invalid Barcodes** - Partial barcodes (last 4 digits) for accounts removed from system
 
 ## Linking Strategy
 
@@ -51,12 +57,16 @@ FROM notification_logs nl
 JOIN notice_failure_reports nfr ON (
     nfr.patron_phone = nl.phone OR
     nfr.patron_id = nl.patron_id OR
-    nfr.patron_barcode = nl.patron_barcode
+    nfr.patron_barcode = nl.patron_barcode OR
+    -- Fuzzy match for partial barcodes (last 4 digits)
+    (nfr.barcode_partial = 1 AND nl.patron_barcode LIKE CONCAT('%', nfr.patron_barcode))
 )
 WHERE nl.delivery_option_id IN (3, 8)  -- Voice=3, SMS=8
   AND nfr.received_at >= nl.notification_date
   AND nfr.received_at <= DATE_ADD(nl.notification_date, INTERVAL 7 DAY)
 ```
+
+**Note on Partial Barcodes**: Monthly reports contain redacted patron barcodes showing only the last 4 digits (format: `XXXXXXXXXX2144`). When `barcode_partial = true`, the `patron_barcode` field contains only these last 4 digits, requiring fuzzy matching using `LIKE '%####'` pattern.
 
 ### Method 2: Link via Shoutbomb Submissions
 
@@ -181,9 +191,21 @@ class LinkShoutbombFailures extends Command
         foreach ($failures as $failure) {
             // Try to find matching notification log
             $notification = NotificationLog::where(function ($query) use ($failure) {
-                    $query->where('phone', $failure->patron_phone)
-                          ->orWhere('patron_id', $failure->patron_id)
-                          ->orWhere('patron_barcode', $failure->patron_barcode);
+                    if ($failure->patron_phone) {
+                        $query->orWhere('phone', $failure->patron_phone);
+                    }
+                    if ($failure->patron_id) {
+                        $query->orWhere('patron_id', $failure->patron_id);
+                    }
+                    if ($failure->patron_barcode) {
+                        if ($failure->barcode_partial) {
+                            // Fuzzy match on last 4 digits for partial barcodes
+                            $query->orWhere('patron_barcode', 'LIKE', '%' . $failure->patron_barcode);
+                        } else {
+                            // Exact match for full barcodes
+                            $query->orWhere('patron_barcode', $failure->patron_barcode);
+                        }
+                    }
                 })
                 ->whereIn('delivery_option_id', [3, 8]) // Voice=3, SMS=8
                 ->where('notification_date', '<=', $failure->received_at)
@@ -330,6 +352,41 @@ HAVING COUNT(*) >= 3
 ORDER BY failure_count DESC
 ```
 
+### Invalid/Removed Barcodes from Monthly Reports
+
+```sql
+-- Get all invalid barcodes with partial matches
+SELECT
+    nfr.patron_barcode as last_4_digits,
+    nfr.failure_reason,
+    nfr.received_at,
+    COUNT(*) as possible_matches,
+    GROUP_CONCAT(nl.patron_barcode) as matched_full_barcodes
+FROM notice_failure_reports nfr
+LEFT JOIN notification_logs nl ON (
+    nfr.barcode_partial = 1 AND
+    nl.patron_barcode LIKE CONCAT('%', nfr.patron_barcode)
+)
+WHERE nfr.failure_type = 'invalid-barcode-removed'
+  AND nfr.received_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+GROUP BY nfr.id, nfr.patron_barcode, nfr.failure_reason, nfr.received_at
+ORDER BY nfr.received_at DESC
+```
+
+### Query by Failure Type
+
+```php
+// Get all partial barcode failures
+$partialBarcodes = NoticeFailureReport::partialBarcodes()
+    ->recent(30)
+    ->get();
+
+// Get invalid/removed barcodes specifically
+$removedAccounts = NoticeFailureReport::invalidBarcodes()
+    ->recent(30)
+    ->get();
+```
+
 ## Dashboard Integration
 
 Add to your notices dashboard:
@@ -346,6 +403,8 @@ $failureStats = [
     'opted_out' => NoticeFailureReport::optedOut()->recent(30)->count(),
     'invalid' => NoticeFailureReport::invalid()->recent(30)->count(),
     'voice_failed' => NoticeFailureReport::byFailureType('voice-not-delivered')->recent(30)->count(),
+    'invalid_barcodes' => NoticeFailureReport::invalidBarcodes()->recent(30)->count(),
+    'partial_barcodes' => NoticeFailureReport::partialBarcodes()->recent(30)->count(),
 ];
 ```
 
