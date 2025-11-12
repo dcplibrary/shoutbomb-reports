@@ -61,28 +61,39 @@ class CheckReportsCommand extends Command
             $processedRecords = 0;
             $skippedCount = 0;
 
+            // Create and start progress bar
+            $progressBar = $this->output->createProgressBar(count($messages));
+            $progressBar->setFormat(' %current%/%max% [%bar%] %percent:3s%% - %message%');
+            $progressBar->setMessage('Starting...');
+            $progressBar->start();
+
             foreach ($messages as $message) {
                 try {
+                    $subject = $message['subject'] ?? 'unknown';
+                    $progressBar->setMessage("Processing: " . substr($subject, 0, 50));
+
                     $result = $this->processMessage($message, $filters);
 
                     if ($result > 0) {
                         $processedEmails++;
                         $processedRecords += $result;
-                        $this->line("✓ Processed: {$message['subject']} ({$result} records)");
                     } else {
                         $skippedCount++;
-                        $this->warn("✗ Skipped: {$message['subject']}");
                     }
                 } catch (\Exception $e) {
                     $skippedCount++;
-                    $this->error("Error processing message: {$e->getMessage()}");
                     Log::error('Failed to process Shoutbomb report', [
                         'message_id' => $message['id'] ?? 'unknown',
                         'error' => $e->getMessage(),
                     ]);
                 }
+
+                $progressBar->advance();
             }
 
+            $progressBar->setMessage('Complete!');
+            $progressBar->finish();
+            $this->newLine();
             $this->newLine();
             $this->info("Processing complete!");
             $this->table(
