@@ -41,7 +41,7 @@ class NoticeFailureReport extends Model
      */
     public function getTable()
     {
-        return config('shoutbomb-failure-reports.storage.table_name', 'notice_failure_reports');
+        return config('shoutbomb-reports.storage.table_name', 'notice_failure_reports');
     }
 
     /**

@@ -10,7 +10,7 @@ class FailureReportParser
 
     public function __construct(array $config = [])
     {
-        $this->config = $config ?: config('shoutbomb-failure-reports.parsing', []);
+        $this->config = $config ?: config('shoutbomb-reports.parsing', []);
     }
 
     /**
@@ -44,7 +44,7 @@ class FailureReportParser
             'subject' => $message['subject'] ?? null,
             'received_at' => $message['receivedDateTime'] ?? null,
             'from_address' => $message['from']['emailAddress']['address'] ?? null,
-            'raw_content' => config('shoutbomb-failure-reports.storage.store_raw_content', false)
+            'raw_content' => config('shoutbomb-reports.storage.store_raw_content', false)
                 ? $bodyContent
                 : null,
         ];

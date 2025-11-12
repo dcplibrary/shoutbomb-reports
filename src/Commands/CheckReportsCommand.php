@@ -35,7 +35,7 @@ class CheckReportsCommand extends Command
 
         try {
             // Get filters from config
-            $filters = config('shoutbomb-failure-reports.filters') ?? [];
+            $filters = config('shoutbomb-reports.filters') ?? [];
 
             // Override with command options
             if ($limit = $this->option('limit')) {
@@ -134,7 +134,7 @@ class CheckReportsCommand extends Command
         $records = $this->parser->parse($message, $bodyContent);
 
         if (empty($records)) {
-            if (config('shoutbomb-failure-reports.storage.log_processing')) {
+            if (config('shoutbomb-reports.storage.log_processing')) {
                 Log::info('Skipped message - no records parsed', [
                     'subject' => $message['subject'] ?? 'unknown',
                 ]);
@@ -144,7 +144,7 @@ class CheckReportsCommand extends Command
 
         // Check if this email has already been processed
         if ($this->isEmailProcessed($message['id'])) {
-            if (config('shoutbomb-failure-reports.storage.log_processing')) {
+            if (config('shoutbomb-reports.storage.log_processing')) {
                 Log::info('Skipped message - email already processed', [
                     'message_id' => $message['id'],
                 ]);
@@ -192,7 +192,7 @@ class CheckReportsCommand extends Command
 
             DB::commit();
 
-            if (config('shoutbomb-failure-reports.storage.log_processing')) {
+            if (config('shoutbomb-reports.storage.log_processing')) {
                 Log::info('Processed Shoutbomb report', [
                     'email_subject' => $message['subject'] ?? 'unknown',
                     'records_saved' => $saved,
@@ -247,7 +247,7 @@ class CheckReportsCommand extends Command
         try {
             ShoutbombMonthlyStat::create($stats);
 
-            if (config('shoutbomb-failure-reports.storage.log_processing')) {
+            if (config('shoutbomb-reports.storage.log_processing')) {
                 Log::info('Saved monthly statistics', [
                     'report_month' => $stats['report_month'] ?? 'unknown',
                     'branch' => $stats['branch_name'] ?? 'unknown',
