@@ -217,6 +217,8 @@ class GraphApiService
             $url = "{$this->baseUrl}/users/{$userEmail}/mailFolders?\$filter=displayName eq '{$folderName}'";
 
             try {
+                Log::debug("Searching for folder: {$folderName}", ['url' => $url]);
+
                 $response = $this->client->get($url, [
                     'headers' => [
                         'Authorization' => "Bearer {$token}",
@@ -225,7 +227,22 @@ class GraphApiService
                 ]);
 
                 $data = json_decode($response->getBody()->getContents(), true);
-                return $data['value'][0]['id'] ?? null;
+
+                Log::debug("Folder search results", [
+                    'folder_name' => $folderName,
+                    'found_count' => count($data['value'] ?? []),
+                    'folders' => array_map(fn($f) => $f['displayName'] ?? 'unknown', $data['value'] ?? []),
+                ]);
+
+                $folderId = $data['value'][0]['id'] ?? null;
+
+                if ($folderId) {
+                    Log::info("Found folder ID for '{$folderName}': {$folderId}");
+                } else {
+                    Log::warning("Folder '{$folderName}' not found in mailbox");
+                }
+
+                return $folderId;
             } catch (\Exception $e) {
                 Log::error('Failed to get folder ID', [
                     'error' => $e->getMessage(),
