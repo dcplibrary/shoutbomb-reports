@@ -3,6 +3,7 @@
 namespace Dcplibrary\ShoutbombFailureReports\Commands;
 
 use Dcplibrary\ShoutbombFailureReports\Models\NoticeFailureReport;
+use Dcplibrary\ShoutbombFailureReports\Models\ShoutbombMonthlyStat;
 use Dcplibrary\ShoutbombFailureReports\Parsers\FailureReportParser;
 use Dcplibrary\ShoutbombFailureReports\Services\GraphApiService;
 use Illuminate\Console\Command;
@@ -186,6 +187,9 @@ class CheckReportsCommand extends Command
                 $this->graphApi->moveMessage($message['id'], $filters['move_to_folder']);
             }
 
+            // Parse and save monthly statistics if this is a monthly report
+            $this->processMonthlyStats($message, $bodyContent);
+
             DB::commit();
 
             if (config('shoutbomb-failure-reports.storage.log_processing')) {
@@ -221,6 +225,40 @@ class CheckReportsCommand extends Command
                     ->orWhere('patron_id', $record['patron_id']);
             })
             ->exists();
+    }
+
+    /**
+     * Process and save monthly statistics if this is a monthly report
+     */
+    protected function processMonthlyStats(array $message, string $bodyContent): void
+    {
+        $stats = $this->parser->parseMonthlyStats($message, $bodyContent);
+
+        if (!$stats) {
+            return; // Not a monthly report
+        }
+
+        // Check if already processed
+        if (ShoutbombMonthlyStat::where('outlook_message_id', $message['id'])->exists()) {
+            return;
+        }
+
+        // Save monthly stats
+        try {
+            ShoutbombMonthlyStat::create($stats);
+
+            if (config('shoutbomb-failure-reports.storage.log_processing')) {
+                Log::info('Saved monthly statistics', [
+                    'report_month' => $stats['report_month'] ?? 'unknown',
+                    'branch' => $stats['branch_name'] ?? 'unknown',
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to save monthly statistics', [
+                'message_id' => $message['id'] ?? 'unknown',
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

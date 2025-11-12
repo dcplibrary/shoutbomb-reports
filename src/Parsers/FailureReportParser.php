@@ -317,13 +317,13 @@ class FailureReportParser
 
                 // Match redacted barcode pattern: X+ followed by 2+ alphanumeric characters
                 // Handles: XXXXXXXXXX2144, XXXX2018, XX1719, XXXXX337E, XXXXXXDu3k, etc.
-                if (preg_match('/^X+([A-Z0-9]{2,})$/i', $line, $matches)) {
-                    $partialBarcode = $matches[1];
+                if (preg_match('/^(X+[A-Z0-9]{2,})$/i', $line, $matches)) {
+                    $fullRedactedBarcode = $matches[1]; // Store full string with X's
 
                     $failure = array_merge($metadata, [
                         'patron_phone' => null,
                         'patron_id' => null,
-                        'patron_barcode' => $partialBarcode, // Store the visible portion
+                        'patron_barcode' => $fullRedactedBarcode, // Store full redacted barcode with X's
                         'barcode_partial' => true, // Flag as partial for fuzzy matching
                         'patron_name' => null,
                         'attempt_count' => null,
@@ -331,11 +331,12 @@ class FailureReportParser
                         'notice_description' => null,
                         'failure_reason' => 'Patron barcode removed from system - no longer valid',
                         'failure_type' => 'invalid-barcode-removed',
+                        'account_status' => 'deleted',
                     ]);
 
                     $failures[] = $failure;
 
-                    Log::debug("Parsed invalid barcode (partial): {$partialBarcode}");
+                    Log::debug("Parsed invalid barcode (redacted): {$fullRedactedBarcode}");
                 }
             }
         }
@@ -374,5 +375,175 @@ class FailureReportParser
         }
 
         return true;
+    }
+
+    /**
+     * Parse monthly statistics from "Shoutbomb Rpt" emails
+     * Returns array of monthly statistics or null if not a monthly report
+     */
+    public function parseMonthlyStats(array $message, ?string $bodyContent = null): ?array
+    {
+        $subject = $message['subject'] ?? '';
+
+        // Only parse if this is a monthly report
+        if (stripos($subject, 'Shoutbomb Rpt') === false) {
+            return null;
+        }
+
+        if (!$bodyContent) {
+            $bodyContent = $message['body']['content'] ?? '';
+        }
+
+        // Strip HTML tags if content is HTML
+        if (($message['body']['contentType'] ?? '') === 'html') {
+            $bodyContent = strip_tags($bodyContent);
+        }
+
+        $stats = [
+            'outlook_message_id' => $message['id'] ?? null,
+            'subject' => $subject,
+            'received_at' => $message['receivedDateTime'] ?? null,
+        ];
+
+        // Extract report month from subject (e.g., "Shoutbomb Rpt October 2025")
+        if (preg_match('/Shoutbomb Rpt\s+(\w+)\s+(\d{4})/i', $subject, $matches)) {
+            $monthName = $matches[1];
+            $year = $matches[2];
+            try {
+                $stats['report_month'] = date('Y-m-01', strtotime("$monthName $year"));
+            } catch (\Exception $e) {
+                Log::warning("Could not parse report month from subject: {$subject}");
+            }
+        }
+
+        // Extract branch name
+        if (preg_match('/Branch::\s*([^\n]+)/i', $bodyContent, $matches)) {
+            $stats['branch_name'] = trim($matches[1]);
+        }
+
+        // Extract hold notices
+        if (preg_match('/Hold text notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['hold_text_notices'] = (int)$m[1];
+        }
+        if (preg_match('/Hold text reminders notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['hold_text_reminders'] = (int)$m[1];
+        }
+        if (preg_match('/Hold voice notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['hold_voice_notices'] = (int)$m[1];
+        }
+        if (preg_match('/Hold voice reminder notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['hold_voice_reminders'] = (int)$m[1];
+        }
+
+        // Extract overdue notices
+        if (preg_match('/Overdue text notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['overdue_text_notices'] = (int)$m[1];
+        }
+        if (preg_match('/Overdue items eligible for renewal, text notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['overdue_text_eligible_renewal'] = (int)$m[1];
+        }
+        if (preg_match('/Overdue items ineligible for renewal, text notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['overdue_text_ineligible_renewal'] = (int)$m[1];
+        }
+        if (preg_match('/Overdue \(text\) items renewed successfully by patrons for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['overdue_text_renewed_successfully'] = (int)$m[1];
+        }
+        if (preg_match('/Overdue \(text\) items unsuccessfully renewed by patrons for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['overdue_text_renewed_unsuccessfully'] = (int)$m[1];
+        }
+        if (preg_match('/Overdue voice notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['overdue_voice_notices'] = (int)$m[1];
+        }
+        if (preg_match('/Overdue items eligible for renewal, voice notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['overdue_voice_eligible_renewal'] = (int)$m[1];
+        }
+        if (preg_match('/Overdue items ineligible for renewal, voice notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['overdue_voice_ineligible_renewal'] = (int)$m[1];
+        }
+
+        // Extract renewal notices
+        if (preg_match('/Renewal text notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['renewal_text_notices'] = (int)$m[1];
+        }
+        if (preg_match('/Items eligible for renewal text notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['renewal_text_eligible'] = (int)$m[1];
+        }
+        if (preg_match('/Items ineligible for renewal text notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['renewal_text_ineligible'] = (int)$m[1];
+        }
+        if (preg_match('/Items \(text\) unsuccessfully renewed by patrons for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['renewal_text_unsuccessfully'] = (int)$m[1];
+        }
+        if (preg_match('/Renewal reminder text notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['renewal_text_reminders'] = (int)$m[1];
+        }
+        if (preg_match('/Items eligible for renewal reminder text notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['renewal_text_reminder_eligible'] = (int)$m[1];
+        }
+        if (preg_match('/Items ineligible for renewal reminder text notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['renewal_text_reminder_ineligible'] = (int)$m[1];
+        }
+
+        if (preg_match('/Renewal voice notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['renewal_voice_notices'] = (int)$m[1];
+        }
+        if (preg_match('/Voice items eligible for renewal notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['renewal_voice_eligible'] = (int)$m[1];
+        }
+        if (preg_match('/Voice items ineligible for renewal notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['renewal_voice_ineligible'] = (int)$m[1];
+        }
+        if (preg_match('/Renewal voice reminder notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['renewal_voice_reminders'] = (int)$m[1];
+        }
+        if (preg_match('/Voice items eligible for renewal reminder notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['renewal_voice_reminder_eligible'] = (int)$m[1];
+        }
+        if (preg_match('/Voice items ineligible for renewal reminder notices sent for the month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['renewal_voice_reminder_ineligible'] = (int)$m[1];
+        }
+
+        // Extract registration statistics
+        if (preg_match('/Total registered users\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['total_registered_users'] = (int)$m[1];
+        }
+        if (preg_match('/Total registered barcodes\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['total_registered_barcodes'] = (int)$m[1];
+        }
+        if (preg_match('/Total registered users for text notices is\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['total_registered_text'] = (int)$m[1];
+        }
+        if (preg_match('/Total registered users for voice notices is\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['total_registered_voice'] = (int)$m[1];
+        }
+        if (preg_match('/Registered users the last month\s*=\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['new_registrations_month'] = (int)$m[1];
+        }
+        if (preg_match('/signed up\s+(\d+)\s+patron\(s\) for voice notices the last month/i', $bodyContent, $m)) {
+            $stats['new_voice_signups'] = (int)$m[1];
+        }
+        if (preg_match('/signed up\s+(\d+)\s+patron\(s\) for text notices the last month/i', $bodyContent, $m)) {
+            $stats['new_text_signups'] = (int)$m[1];
+        }
+
+        // Extract call statistics
+        if (preg_match('/Average daily call volume is::\s*(\d+)/i', $bodyContent, $m)) {
+            $stats['average_daily_calls'] = (int)$m[1];
+        }
+
+        // Extract keyword usage
+        $keywords = [];
+        if (preg_match_all('/^(\w+)\s+was used\s+(\d+)\s+times?\./im', $bodyContent, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $keywords[$match[1]] = (int)$match[2];
+            }
+        }
+        if (!empty($keywords)) {
+            $stats['keyword_usage'] = $keywords;
+        }
+
+        Log::info("Parsed monthly statistics for " . ($stats['report_month'] ?? 'unknown month'));
+
+        return $stats;
     }
 }
