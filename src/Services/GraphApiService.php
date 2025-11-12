@@ -59,7 +59,8 @@ class GraphApiService
             $filterParts[] = 'isRead eq false';
         }
 
-        if (!empty($filters['subject_contains'])) {
+        // Only add subject filter if value is provided and not empty/null
+        if (isset($filters['subject_contains']) && $filters['subject_contains'] !== null && $filters['subject_contains'] !== '') {
             $filterParts[] = "contains(subject, '{$filters['subject_contains']}')";
         }
 
