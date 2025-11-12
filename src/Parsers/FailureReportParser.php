@@ -151,7 +151,7 @@ class FailureReportParser
      * Parse individual failure lines in format:
      * phone :: barcode :: patron_id :: branch_id :: notice_type
      * Example: 5555551234 :: 12345678901234 :: 567890 :: 3 :: SMS
-     * Note: Some lines may have fewer parts or "No associated barcode"
+     * Note: Some lines may have fewer parts indicating deleted/unavailable accounts
      */
     protected function parseFailureLines(string $section, array $metadata, string $failureType): array
     {
@@ -173,22 +173,30 @@ class FailureReportParser
             if (count($parts) >= 2) {
                 $patronBarcode = $parts[1] ?? null;
                 $patronId = null;
-                $attemptCount = null;
-                $noticeType = 'SMS';
+                $branchId = null;
+                $noticeType = null;
+                $accountStatus = 'active';
 
-                // Handle "No associated barcode" case
+                // Handle "No associated barcode" case - account likely deleted
                 if (stripos($patronBarcode, 'No associated barcode') !== false) {
                     $patronBarcode = null;
-                } else {
-                    // Parse remaining fields based on count
-                    if (count($parts) >= 3) {
-                        $patronId = $parts[2] ?? null;
-                    }
+                    $accountStatus = 'deleted';
+                } elseif (count($parts) == 3 && is_numeric($parts[2]) && $parts[2] <= 10) {
+                    // Format: phone :: barcode :: branch_id (missing patron_id and notice_type)
+                    // Example: 5555551234 :: 12345678901234 :: 3
+                    // Indicates deleted/unavailable account
+                    $branchId = (int)$parts[2];
+                    $accountStatus = 'unavailable';
+                    $noticeType = null; // Unknown
+                } elseif (count($parts) >= 3) {
+                    // Normal parsing: has patron_id
+                    $patronId = $parts[2] ?? null;
+
                     if (count($parts) >= 4) {
-                        $attemptCount = isset($parts[3]) && is_numeric($parts[3]) ? (int)$parts[3] : null;
+                        $branchId = isset($parts[3]) && is_numeric($parts[3]) ? (int)$parts[3] : null;
                     }
                     if (count($parts) >= 5) {
-                        $noticeType = $parts[4] ?? 'SMS';
+                        $noticeType = $parts[4] ?? null;
                     }
                 }
 
@@ -196,10 +204,13 @@ class FailureReportParser
                     'patron_phone' => $parts[0] ?? null,
                     'patron_id' => $patronId,
                     'patron_barcode' => $patronBarcode,
-                    'attempt_count' => $attemptCount,
+                    'attempt_count' => $branchId,
                     'notice_type' => $noticeType,
-                    'failure_reason' => $this->getFailureReason($failureType),
+                    'failure_reason' => $accountStatus === 'active'
+                        ? $this->getFailureReason($failureType)
+                        : $this->getFailureReason($failureType) . ' (account ' . $accountStatus . ')',
                     'failure_type' => $failureType,
+                    'account_status' => $accountStatus,
                 ]);
 
                 $failures[] = $failure;
