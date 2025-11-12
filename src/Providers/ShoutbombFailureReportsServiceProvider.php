@@ -15,14 +15,14 @@ class ShoutbombFailureReportsServiceProvider extends ServiceProvider
     {
         // Merge config
         $this->mergeConfigFrom(
-            __DIR__ . '/../../config/shoutbomb-failure-reports.php',
-            'shoutbomb-failure-reports'
+            __DIR__ . '/../../config/shoutbomb-reports.php',
+            'shoutbomb-reports'
         );
 
         // Register GraphApiService as singleton
         $this->app->singleton(GraphApiService::class, function ($app) {
             return new GraphApiService(
-                config('shoutbomb-failure-reports.graph')
+                config('shoutbomb-reports.graph')
             );
         });
     }
@@ -34,13 +34,13 @@ class ShoutbombFailureReportsServiceProvider extends ServiceProvider
     {
         // Publish config
         $this->publishes([
-            __DIR__ . '/../../config/shoutbomb-failure-reports.php' => config_path('shoutbomb-failure-reports.php'),
-        ], 'shoutbomb-failure-reports-config');
+            __DIR__ . '/../../config/shoutbomb-reports.php' => config_path('shoutbomb-reports.php'),
+        ], 'shoutbomb-reports-config');
 
         // Publish migrations
         $this->publishes([
             __DIR__ . '/../database/migrations/' => database_path('migrations'),
-        ], 'shoutbomb-failure-reports-migrations');
+        ], 'shoutbomb-reports-migrations');
 
         // Load migrations
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');

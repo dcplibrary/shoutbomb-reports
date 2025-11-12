@@ -80,7 +80,7 @@ Schedule it to run after checking for failures:
 // app/Console/Kernel.php
 protected function schedule(Schedule $schedule)
 {
-    $schedule->command('shoutbomb:check-failure-reports')->hourly();
+    $schedule->command('shoutbomb:check-reports')->hourly();
     $schedule->command('notices:link-failure-reports')->hourly()->delay(5); // 5 min after
 }
 ```

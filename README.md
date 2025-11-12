@@ -1,21 +1,21 @@
-# Shoutbomb Failure Reports Package
+# Shoutbomb Reports Package
 
-A Laravel package for reading and parsing email delivery failure reports from Microsoft 365 Outlook using the Microsoft Graph API. Designed specifically to integrate with the [Daviess County Public Library Notices Package](https://github.com/dcplibrary/notices) to track SMS and Voice notification failures.
+A Laravel package for reading and parsing Shoutbomb report emails from Microsoft 365 Outlook using the Microsoft Graph API. Designed specifically to integrate with the [Daviess County Public Library Notices Package](https://github.com/dcplibrary/notices) to track SMS and Voice notification delivery.
 
 ## Overview
 
 This package automatically:
 - Connects to your Microsoft 365 Outlook mailbox
-- Reads delivery failure reports (bounced emails, undelivered SMS/Voice notifications)
-- Parses the failure details (recipient, reason, error codes)
+- Reads Shoutbomb report emails (daily failures, monthly summaries, delivery statistics)
+- Parses failure details (opted-out patrons, invalid phone numbers, undelivered notices)
 - Stores the data in your database for verification and reporting
 - Integrates with your existing notice verification workflow
 
 ## Why This Package?
 
-When SMS or Voice notices fail to deliver, providers like Shoutbomb send failure reports via email. This package:
-- **Automates** the manual process of checking failure emails
-- **Extracts** critical information (patron ID, phone number, failure reason)
+Shoutbomb sends various report emails including failure reports and monthly summaries. This package:
+- **Automates** the manual process of checking Shoutbomb emails
+- **Extracts** critical information (patron ID, phone number, failure reason, delivery stats)
 - **Stores** data in a structured format for analysis
 - **Integrates** with your notice verification system
 
@@ -41,21 +41,21 @@ When SMS or Voice notices fail to deliver, providers like Shoutbomb send failure
 ### 1. Install via Composer
 
 ```bash
-composer require dcplibrary/shoutbomb-failure-reports
+composer require dcplibrary/shoutbomb-reports
 ```
 
 ### 2. Publish Configuration
 
 ```bash
-php artisan vendor:publish --tag=shoutbomb-failure-reports-config
+php artisan vendor:publish --tag=shoutbomb-reports-config
 ```
 
-This creates `config/shoutbomb-failure-reports.php`
+This creates `config/shoutbomb-reports.php`
 
 ### 3. Publish Migrations
 
 ```bash
-php artisan vendor:publish --tag=shoutbomb-failure-reports-migrations
+php artisan vendor:publish --tag=shoutbomb-reports-migrations
 php artisan migrate
 ```
 
@@ -129,7 +129,7 @@ SHOUTBOMB_LOG_PROCESSING=true
 
 ### Config File
 
-The published config file (`config/shoutbomb-failure-reports.php`) contains:
+The published config file (`config/shoutbomb-reports.php`) contains:
 
 - **Graph API settings** - Tenant, client credentials, API version
 - **Filtering rules** - Subject, sender, folder filters
@@ -145,20 +145,20 @@ You can customize parsing patterns for your specific failure report formats.
 Check for new failure reports and process them:
 
 ```bash
-php artisan shoutbomb:check-failure-reports
+php artisan shoutbomb:check-reports
 ```
 
 ### Command Options
 
 ```bash
 # Dry run - see what would be processed without saving
-php artisan shoutbomb:check-failure-reports --dry-run
+php artisan shoutbomb:check-reports --dry-run
 
 # Limit number of emails to process
-php artisan shoutbomb:check-failure-reports --limit=10
+php artisan shoutbomb:check-reports --limit=10
 
 # Force mark as read (override config)
-php artisan shoutbomb:check-failure-reports --mark-read
+php artisan shoutbomb:check-reports --mark-read
 ```
 
 ### Scheduled Execution
@@ -169,13 +169,13 @@ Add to `app/Console/Kernel.php`:
 protected function schedule(Schedule $schedule)
 {
     // Check every 15 minutes during business hours
-    $schedule->command('shoutbomb:check-failure-reports')
+    $schedule->command('shoutbomb:check-reports')
         ->everyFifteenMinutes()
         ->weekdays()
         ->between('8:00', '18:00');
 
     // Or check every hour
-    $schedule->command('shoutbomb:check-failure-reports')
+    $schedule->command('shoutbomb:check-reports')
         ->hourly();
 }
 ```
@@ -279,7 +279,7 @@ The `notice_failure_reports` table contains:
 
 ### Custom Patterns
 
-Edit `config/shoutbomb-failure-reports.php` to add custom regex patterns:
+Edit `config/shoutbomb-reports.php` to add custom regex patterns:
 
 ```php
 'parsing' => [
@@ -353,7 +353,7 @@ LOG_LEVEL=debug
 Run with dry-run to see parsed data:
 
 ```bash
-php artisan shoutbomb:check-failure-reports --dry-run
+php artisan shoutbomb:check-reports --dry-run
 ```
 
 ## Security Considerations
@@ -369,7 +369,7 @@ php artisan shoutbomb:check-failure-reports --dry-run
 Create a test failure report email and send it to your monitored inbox, then run:
 
 ```bash
-php artisan shoutbomb:check-failure-reports --dry-run
+php artisan shoutbomb:check-reports --dry-run
 ```
 
 Verify the parsing is correct before running without `--dry-run`.

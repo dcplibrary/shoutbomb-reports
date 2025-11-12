@@ -12,17 +12,17 @@ Step-by-step guide to install and configure the Outlook Failure Reports package.
 ## Step 1: Install Package
 
 ```bash
-composer require dcplibrary/shoutbomb-failure-reports
+composer require dcplibrary/shoutbomb-reports
 ```
 
 ## Step 2: Publish Assets
 
 ```bash
 # Publish config file
-php artisan vendor:publish --tag=shoutbomb-failure-reports-config
+php artisan vendor:publish --tag=shoutbomb-reports-config
 
 # Publish and run migrations
-php artisan vendor:publish --tag=shoutbomb-failure-reports-migrations
+php artisan vendor:publish --tag=shoutbomb-reports-migrations
 php artisan migrate
 ```
 
@@ -106,7 +106,7 @@ SHOUTBOMB_MARK_AS_READ=true
 ### Test with Dry Run
 
 ```bash
-php artisan shoutbomb:check-failure-reports --dry-run
+php artisan shoutbomb:check-reports --dry-run
 ```
 
 This will:
@@ -152,7 +152,7 @@ Processing complete!
 Once dry-run looks good:
 
 ```bash
-php artisan shoutbomb:check-failure-reports
+php artisan shoutbomb:check-reports
 ```
 
 Verify data in database:
@@ -172,7 +172,7 @@ Edit `app/Console/Kernel.php`:
 protected function schedule(Schedule $schedule)
 {
     // Check for failure reports every 15 minutes during business hours
-    $schedule->command('shoutbomb:check-failure-reports')
+    $schedule->command('shoutbomb:check-reports')
         ->everyFifteenMinutes()
         ->weekdays()
         ->between('8:00', '18:00')
@@ -185,7 +185,7 @@ Or for 24/7 monitoring:
 ```php
 protected function schedule(Schedule $schedule)
 {
-    $schedule->command('shoutbomb:check-failure-reports')
+    $schedule->command('shoutbomb:check-reports')
         ->hourly()
         ->withoutOverlapping();
 }
@@ -259,7 +259,7 @@ SHOUTBOMB_FOLDER=Failure Reports
 **Solutions**:
 - Enable raw content storage: `SHOUTBOMB_STORE_RAW=true`
 - Run with dry-run and examine output
-- Customize parsing patterns in `config/shoutbomb-failure-reports.php`
+- Customize parsing patterns in `config/shoutbomb-reports.php`
 - Check `storage/logs/laravel.log` for details
 
 ### Client Secret Expired

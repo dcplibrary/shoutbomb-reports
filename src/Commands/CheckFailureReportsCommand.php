@@ -11,12 +11,12 @@ use Illuminate\Support\Facades\Log;
 
 class CheckFailureReportsCommand extends Command
 {
-    protected $signature = 'shoutbomb:check-failure-reports
+    protected $signature = 'shoutbomb:check-reports
                             {--dry-run : Display what would be processed without saving}
                             {--limit= : Maximum number of emails to process}
                             {--mark-read : Mark processed emails as read}';
 
-    protected $description = 'Check Outlook for Shoutbomb failure reports and store them in the database';
+    protected $description = 'Check Outlook for Shoutbomb report emails and process them';
 
     protected GraphApiService $graphApi;
     protected FailureReportParser $parser;
