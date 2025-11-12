@@ -2,7 +2,7 @@
 
 namespace Dcplibrary\ShoutbombFailureReports\Providers;
 
-use Dcplibrary\ShoutbombFailureReports\Commands\CheckFailureReportsCommand;
+use Dcplibrary\ShoutbombFailureReports\Commands\CheckReportsCommand;
 use Dcplibrary\ShoutbombFailureReports\Services\GraphApiService;
 use Illuminate\Support\ServiceProvider;
 
@@ -48,7 +48,7 @@ class ShoutbombFailureReportsServiceProvider extends ServiceProvider
         // Register commands
         if ($this->app->runningInConsole()) {
             $this->commands([
-                CheckFailureReportsCommand::class,
+                CheckReportsCommand::class,
             ]);
         }
     }
