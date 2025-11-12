@@ -150,7 +150,8 @@ class FailureReportParser
     /**
      * Parse individual failure lines in format:
      * phone :: patron_id :: barcode :: attempt_count :: notice_type
-     * Example: 2703143931 :: 23307015354998 :: 143090 :: 3 :: SMS
+     * Example: 5555551234 :: 12345678901234 :: 567890 :: 3 :: SMS
+     * Note: Some lines may have fewer parts or "No associated barcode"
      */
     protected function parseFailureLines(string $section, array $metadata, string $failureType): array
     {
@@ -168,13 +169,35 @@ class FailureReportParser
             // Parse the line format: phone :: patron_id :: barcode :: attempts :: type
             $parts = array_map('trim', explode('::', $line));
 
-            if (count($parts) >= 4) {
+            // Need at least phone number and one other field
+            if (count($parts) >= 2) {
+                $patronId = $parts[1] ?? null;
+                $patronBarcode = null;
+                $attemptCount = null;
+                $noticeType = 'SMS';
+
+                // Handle "No associated barcode" case
+                if (stripos($patronId, 'No associated barcode') !== false) {
+                    $patronId = null;
+                } else {
+                    // Parse remaining fields based on count
+                    if (count($parts) >= 3) {
+                        $patronBarcode = $parts[2] ?? null;
+                    }
+                    if (count($parts) >= 4) {
+                        $attemptCount = isset($parts[3]) && is_numeric($parts[3]) ? (int)$parts[3] : null;
+                    }
+                    if (count($parts) >= 5) {
+                        $noticeType = $parts[4] ?? 'SMS';
+                    }
+                }
+
                 $failure = array_merge($metadata, [
                     'patron_phone' => $parts[0] ?? null,
-                    'patron_id' => $parts[1] ?? null,
-                    'patron_barcode' => $parts[2] ?? null,
-                    'attempt_count' => isset($parts[3]) ? (int)$parts[3] : null,
-                    'notice_type' => $parts[4] ?? 'SMS',
+                    'patron_id' => $patronId,
+                    'patron_barcode' => $patronBarcode,
+                    'attempt_count' => $attemptCount,
+                    'notice_type' => $noticeType,
                     'failure_reason' => $this->getFailureReason($failureType),
                     'failure_type' => $failureType,
                 ]);
@@ -260,8 +283,8 @@ class FailureReportParser
 
     /**
      * Parse invalid/removed patron barcodes section from monthly reports
-     * Format: XXXXXXXXXX#### (last 4 digits visible)
-     * Example: XXXXXXXXXX2144
+     * Format: X's followed by partial barcode (digits or alphanumeric)
+     * Examples: XXXXXXXXXX2144, XXXX2018, XX1719, XXXXX337E, XXXXXXDu3k
      */
     protected function parseInvalidBarcodesSection(string $content, array $metadata): array
     {
@@ -281,14 +304,15 @@ class FailureReportParser
                     continue;
                 }
 
-                // Match redacted barcode pattern: XXXXXXXXXX#### (10 X's + 4 digits)
-                if (preg_match('/X{5,}(\d{4})/', $line, $matches)) {
-                    $lastFourDigits = $matches[1];
+                // Match redacted barcode pattern: X+ followed by 2+ alphanumeric characters
+                // Handles: XXXXXXXXXX2144, XXXX2018, XX1719, XXXXX337E, XXXXXXDu3k, etc.
+                if (preg_match('/^X+([A-Z0-9]{2,})$/i', $line, $matches)) {
+                    $partialBarcode = $matches[1];
 
                     $failure = array_merge($metadata, [
                         'patron_phone' => null,
                         'patron_id' => null,
-                        'patron_barcode' => $lastFourDigits, // Store just the last 4 digits
+                        'patron_barcode' => $partialBarcode, // Store the visible portion
                         'barcode_partial' => true, // Flag as partial for fuzzy matching
                         'patron_name' => null,
                         'attempt_count' => null,
@@ -300,7 +324,7 @@ class FailureReportParser
 
                     $failures[] = $failure;
 
-                    Log::debug("Parsed invalid barcode (partial): {$lastFourDigits}");
+                    Log::debug("Parsed invalid barcode (partial): {$partialBarcode}");
                 }
             }
         }
