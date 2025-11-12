@@ -47,8 +47,11 @@ class GraphApiService
     /**
      * Get messages from user's mailbox with filters
      */
-    public function getMessages(array $filters = []): array
+    public function getMessages(?array $filters = []): array
     {
+        // Ensure $filters is an array even if null is passed
+        $filters = $filters ?? [];
+
         $token = $this->getAccessToken();
         $userEmail = $this->config['user_email'];
 
