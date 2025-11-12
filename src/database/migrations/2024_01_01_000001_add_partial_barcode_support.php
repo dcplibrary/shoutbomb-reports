@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $tableName = config('shoutbomb-failure-reports.storage.table_name', 'notice_failure_reports');
+        $tableName = config('shoutbomb-reports.storage.table_name', 'notice_failure_reports');
 
         Schema::table($tableName, function (Blueprint $table) {
             // Add field to track if barcode is partial (redacted)
@@ -28,7 +28,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        $tableName = config('shoutbomb-failure-reports.storage.table_name', 'notice_failure_reports');
+        $tableName = config('shoutbomb-reports.storage.table_name', 'notice_failure_reports');
 
         Schema::table($tableName, function (Blueprint $table) {
             $table->dropIndex(['barcode_partial', 'patron_barcode']);
