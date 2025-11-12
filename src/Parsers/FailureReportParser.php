@@ -149,7 +149,7 @@ class FailureReportParser
 
     /**
      * Parse individual failure lines in format:
-     * phone :: patron_id :: barcode :: attempt_count :: notice_type
+     * phone :: barcode :: patron_id :: branch_id :: notice_type
      * Example: 5555551234 :: 12345678901234 :: 567890 :: 3 :: SMS
      * Note: Some lines may have fewer parts or "No associated barcode"
      */
@@ -166,23 +166,23 @@ class FailureReportParser
                 continue;
             }
 
-            // Parse the line format: phone :: patron_id :: barcode :: attempts :: type
+            // Parse the line format: phone :: barcode :: patron_id :: branch_id :: notice_type
             $parts = array_map('trim', explode('::', $line));
 
             // Need at least phone number and one other field
             if (count($parts) >= 2) {
-                $patronId = $parts[1] ?? null;
-                $patronBarcode = null;
+                $patronBarcode = $parts[1] ?? null;
+                $patronId = null;
                 $attemptCount = null;
                 $noticeType = 'SMS';
 
                 // Handle "No associated barcode" case
-                if (stripos($patronId, 'No associated barcode') !== false) {
-                    $patronId = null;
+                if (stripos($patronBarcode, 'No associated barcode') !== false) {
+                    $patronBarcode = null;
                 } else {
                     // Parse remaining fields based on count
                     if (count($parts) >= 3) {
-                        $patronBarcode = $parts[2] ?? null;
+                        $patronId = $parts[2] ?? null;
                     }
                     if (count($parts) >= 4) {
                         $attemptCount = isset($parts[3]) && is_numeric($parts[3]) ? (int)$parts[3] : null;
