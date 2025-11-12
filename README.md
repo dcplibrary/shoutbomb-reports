@@ -116,8 +116,8 @@ SHOUTBOMB_USER_EMAIL=your-email@dcplibrary.org
 
 # Email Filtering
 SHOUTBOMB_FOLDER=null                    # null for inbox, or folder name
-SHOUTBOMB_SUBJECT_FILTER=Undelivered     # Filter by subject
-SHOUTBOMB_FROM_FILTER=postmaster@,mailer-daemon@
+SHOUTBOMB_SUBJECT_FILTER=                # Leave blank/null to process all emails
+SHOUTBOMB_FROM_FILTER=                   # Leave blank/null to disable sender filtering
 SHOUTBOMB_MAX_EMAILS=50
 SHOUTBOMB_UNREAD_ONLY=true
 SHOUTBOMB_MARK_AS_READ=true
@@ -134,11 +134,11 @@ SHOUTBOMB_LOG_PROCESSING=true
 The published config file (`config/shoutbomb-reports.php`) contains:
 
 - **Graph API settings** - Tenant, client credentials, API version
-- **Filtering rules** - Subject, sender, folder filters
+- **Filtering rules** - Subject, sender, folder filters (all optional - set to null/blank to disable)
 - **Parsing patterns** - Regex patterns for extracting data
 - **Storage options** - Table name, logging preferences
 
-You can customize parsing patterns for your specific failure report formats.
+You can customize parsing patterns for your specific failure report formats. Subject and sender filters are optional and can be left blank to process all emails from the monitored mailbox.
 
 ## Usage
 

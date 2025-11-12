@@ -42,11 +42,12 @@ return [
         'folder' => env('SHOUTBOMB_FOLDER', null),
 
         // Subject line filters (partial match, case-insensitive)
-        // Match Shoutbomb failure report subjects
-        'subject_contains' => env('SHOUTBOMB_SUBJECT_FILTER', 'Invalid patron phone number'),
+        // Set to null or empty string to disable subject filtering
+        'subject_contains' => env('SHOUTBOMB_SUBJECT_FILTER', null),
 
-        // Sender email filters (array or comma-separated)
-        'from_addresses' => env('SHOUTBOMB_FROM_FILTER', 'shoutbomb.com'),
+        // Sender email filters (partial match, case-insensitive)
+        // Set to null or empty string to disable sender filtering
+        'from_addresses' => env('SHOUTBOMB_FROM_FILTER', null),
 
         // Maximum number of emails to process per run
         'max_emails' => env('SHOUTBOMB_MAX_EMAILS', 50),
