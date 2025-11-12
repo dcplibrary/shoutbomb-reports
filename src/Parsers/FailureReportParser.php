@@ -191,7 +191,7 @@ class FailureReportParser
     /**
      * Parse Voice failure report (different format)
      * Format: phone | patron_barcode | library_name | patron_name | [notice_description]
-     * Example: 2707021797 | 23307015339379 | Daviess County Public Library | GRIFFITH, CHARLES | Overdue item message
+     * Example: 5551234567 | 12345678901234 | Sample Library | DOE, JOHN | Overdue item message
      * Note: notice_description may be on the same line (after last pipe) or on the next line
      */
     protected function parseVoiceFailures(string $content, array $metadata): array
