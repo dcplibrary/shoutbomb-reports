@@ -21,6 +21,7 @@ class NoticeFailureReport extends Model
         'notice_type',
         'failure_type',
         'failure_reason',
+        'account_status',
         'notice_description',
         'attempt_count',
         'received_at',
@@ -150,5 +151,37 @@ class NoticeFailureReport extends Model
     public function scopeInvalidBarcodes($query)
     {
         return $query->where('failure_type', 'invalid-barcode-removed');
+    }
+
+    /**
+     * Check if account is deleted
+     */
+    public function isAccountDeleted(): bool
+    {
+        return $this->account_status === 'deleted';
+    }
+
+    /**
+     * Check if account is unavailable
+     */
+    public function isAccountUnavailable(): bool
+    {
+        return in_array($this->account_status, ['deleted', 'unavailable']);
+    }
+
+    /**
+     * Scope to get deleted/unavailable accounts
+     */
+    public function scopeUnavailableAccounts($query)
+    {
+        return $query->whereIn('account_status', ['deleted', 'unavailable']);
+    }
+
+    /**
+     * Scope to get deleted accounts
+     */
+    public function scopeDeletedAccounts($query)
+    {
+        return $query->where('account_status', 'deleted');
     }
 }

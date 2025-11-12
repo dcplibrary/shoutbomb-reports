@@ -31,6 +31,7 @@ return new class extends Migration
             $table->string('notice_type', 20)->nullable()->index(); // SMS, Voice, etc.
             $table->string('failure_type', 50)->nullable()->index(); // opted-out, invalid, voice-not-delivered
             $table->text('failure_reason')->nullable();
+            $table->string('account_status', 20)->nullable()->index(); // active, deleted, unavailable
             $table->string('notice_description')->nullable(); // For voice failures
             $table->integer('attempt_count')->nullable();
 
