@@ -1,6 +1,6 @@
 # Outlook Failure Reports Package
 
-A Laravel package for reading and parsing email delivery failure reports from Microsoft 365 Outlook using the Microsoft Graph API. Designed specifically to integrate with the [DC Public Library Notices Package](https://github.com/dcplibrary/notices) to track SMS and Voice notification failures.
+A Laravel package for reading and parsing email delivery failure reports from Microsoft 365 Outlook using the Microsoft Graph API. Designed specifically to integrate with the [Daviess County Public Library Notices Package](https://github.com/dcplibrary/notices) to track SMS and Voice notification failures.
 
 ## Overview
 
@@ -449,6 +449,6 @@ For Azure AD / Graph API questions, refer to [Microsoft Graph documentation](htt
 
 ## Credits
 
-Created by [Brian Lashbrook](mailto:blashbrook@dcplibrary.org) for DC Public Library.
+Created by [Brian Lashbrook](mailto:blashbrook@dcplibrary.org) for Daviess County Public Library.
 
-Integrates with [DC Public Library Notices Package](https://github.com/dcplibrary/notices).
+Integrates with [Daviess County Public Library Notices Package](https://github.com/dcplibrary/notices).
