@@ -16,7 +16,7 @@ class CheckFailureReportsCommand extends Command
                             {--limit= : Maximum number of emails to process}
                             {--mark-read : Mark processed emails as read}';
 
-    protected $description = 'Check Outlook for failure reports and store them in the database';
+    protected $description = 'Check Outlook for Shoutbomb failure reports and store them in the database';
 
     protected GraphApiService $graphApi;
     protected FailureReportParser $parser;
@@ -54,24 +54,27 @@ class CheckFailureReportsCommand extends Command
                 return self::SUCCESS;
             }
 
-            $this->info("Found {$this->count($messages)} message(s) to process.");
+            $this->info("Found " . count($messages) . " message(s) to process.");
+            $this->newLine();
 
-            $processedCount = 0;
-            $errorCount = 0;
+            $processedEmails = 0;
+            $processedFailures = 0;
+            $skippedCount = 0;
 
             foreach ($messages as $message) {
                 try {
                     $result = $this->processMessage($message, $filters);
 
-                    if ($result) {
-                        $processedCount++;
-                        $this->line("✓ Processed: {$message['subject']}");
+                    if ($result > 0) {
+                        $processedEmails++;
+                        $processedFailures += $result;
+                        $this->line("✓ Processed: {$message['subject']} ({$result} failures)");
                     } else {
-                        $errorCount++;
+                        $skippedCount++;
                         $this->warn("✗ Skipped: {$message['subject']}");
                     }
                 } catch (\Exception $e) {
-                    $errorCount++;
+                    $skippedCount++;
                     $this->error("Error processing message: {$e->getMessage()}");
                     Log::error('Failed to process failure report', [
                         'message_id' => $message['id'] ?? 'unknown',
@@ -83,11 +86,12 @@ class CheckFailureReportsCommand extends Command
             $this->newLine();
             $this->info("Processing complete!");
             $this->table(
-                ['Status', 'Count'],
+                ['Metric', 'Count'],
                 [
-                    ['Processed', $processedCount],
-                    ['Errors/Skipped', $errorCount],
-                    ['Total', count($messages)],
+                    ['Emails Processed', $processedEmails],
+                    ['Individual Failures', $processedFailures],
+                    ['Emails Skipped', $skippedCount],
+                    ['Total Emails', count($messages)],
                 ]
             );
 
@@ -103,46 +107,60 @@ class CheckFailureReportsCommand extends Command
     }
 
     /**
-     * Process a single message
+     * Process a single message (which may contain multiple failures)
+     * Returns the number of failures processed
      */
-    protected function processMessage(array $message, array $filters): bool
+    protected function processMessage(array $message, array $filters): int
     {
         // Get message body
         $bodyContent = $this->graphApi->getMessageBody($message, 'text');
 
-        // Parse the message
-        $parsedData = $this->parser->parse($message, $bodyContent);
+        // Parse the message (returns array of failures)
+        $failures = $this->parser->parse($message, $bodyContent);
 
-        // Validate parsed data
-        if (!$this->parser->validate($parsedData)) {
+        if (empty($failures)) {
             if (config('outlook-failure-reports.storage.log_processing')) {
-                Log::info('Skipped message - validation failed', [
+                Log::info('Skipped message - no failures parsed', [
                     'subject' => $message['subject'] ?? 'unknown',
                 ]);
             }
-            return false;
+            return 0;
         }
 
-        // Check if already processed (avoid duplicates)
-        if ($this->isDuplicate($parsedData['outlook_message_id'])) {
+        // Check if this email has already been processed
+        if ($this->isEmailProcessed($message['id'])) {
             if (config('outlook-failure-reports.storage.log_processing')) {
-                Log::info('Skipped message - already processed', [
-                    'message_id' => $parsedData['outlook_message_id'],
+                Log::info('Skipped message - email already processed', [
+                    'message_id' => $message['id'],
                 ]);
             }
-            return false;
+            return 0;
         }
 
         // Dry run mode - just display what would be saved
         if ($this->option('dry-run')) {
-            $this->displayParsedData($parsedData);
-            return true;
+            $this->displayParsedFailures($failures);
+            return count($failures);
         }
 
-        // Save to database
+        // Save all failures to database
+        $saved = 0;
         DB::beginTransaction();
         try {
-            NoticeFailureReport::create($parsedData);
+            foreach ($failures as $failure) {
+                // Validate each failure
+                if (!$this->parser->validate($failure)) {
+                    continue;
+                }
+
+                // Check for duplicates
+                if ($this->isFailureDuplicate($failure)) {
+                    continue;
+                }
+
+                NoticeFailureReport::create($failure);
+                $saved++;
+            }
 
             // Mark as read if configured
             if ($filters['mark_as_read'] ?? false) {
@@ -157,13 +175,13 @@ class CheckFailureReportsCommand extends Command
             DB::commit();
 
             if (config('outlook-failure-reports.storage.log_processing')) {
-                Log::info('Processed failure report', [
-                    'recipient' => $parsedData['recipient_email'],
-                    'patron' => $parsedData['patron_identifier'],
+                Log::info('Processed Shoutbomb report', [
+                    'email_subject' => $message['subject'] ?? 'unknown',
+                    'failures_saved' => $saved,
                 ]);
             }
 
-            return true;
+            return $saved;
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
@@ -171,42 +189,55 @@ class CheckFailureReportsCommand extends Command
     }
 
     /**
-     * Check if message has already been processed
+     * Check if email has already been processed
      */
-    protected function isDuplicate(string $messageId): bool
+    protected function isEmailProcessed(string $messageId): bool
     {
         return NoticeFailureReport::where('outlook_message_id', $messageId)->exists();
     }
 
     /**
-     * Display parsed data in dry-run mode
+     * Check if specific failure already exists
      */
-    protected function displayParsedData(array $data): void
+    protected function isFailureDuplicate(array $failure): bool
     {
-        $this->newLine();
-        $this->line("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        $this->info("Parsed Data (Dry Run):");
-        $this->table(
-            ['Field', 'Value'],
-            [
-                ['Subject', $data['subject']],
-                ['Recipient Email', $data['recipient_email'] ?? 'N/A'],
-                ['Patron ID', $data['patron_identifier'] ?? 'N/A'],
-                ['Notice Type', $data['notice_type'] ?? 'N/A'],
-                ['Failure Reason', $data['failure_reason'] ?? 'N/A'],
-                ['Error Code', $data['error_code'] ?? 'N/A'],
-                ['Received At', $data['received_at']],
-            ]
-        );
+        return NoticeFailureReport::where('outlook_message_id', $failure['outlook_message_id'])
+            ->where(function ($query) use ($failure) {
+                $query->where('patron_phone', $failure['patron_phone'])
+                    ->orWhere('patron_id', $failure['patron_id']);
+            })
+            ->exists();
     }
 
     /**
-     * Count helper for messages
+     * Display parsed failures in dry-run mode
      */
-    protected function count($messages): int
+    protected function displayParsedFailures(array $failures): void
     {
-        return is_array($messages) || $messages instanceof \Countable
-            ? count($messages)
-            : 0;
+        $this->newLine();
+        $this->line("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        $this->info("Parsed " . count($failures) . " Failure(s) (Dry Run):");
+        $this->newLine();
+
+        foreach ($failures as $index => $failure) {
+            $this->line("Failure #" . ($index + 1));
+            $this->table(
+                ['Field', 'Value'],
+                [
+                    ['Subject', $failure['subject'] ?? 'N/A'],
+                    ['Patron Phone', $failure['patron_phone'] ?? 'N/A'],
+                    ['Patron ID', $failure['patron_id'] ?? 'N/A'],
+                    ['Patron Barcode', $failure['patron_barcode'] ?? 'N/A'],
+                    ['Patron Name', $failure['patron_name'] ?? 'N/A'],
+                    ['Notice Type', $failure['notice_type'] ?? 'N/A'],
+                    ['Failure Type', $failure['failure_type'] ?? 'N/A'],
+                    ['Failure Reason', $failure['failure_reason'] ?? 'N/A'],
+                    ['Notice Description', $failure['notice_description'] ?? 'N/A'],
+                    ['Attempt Count', $failure['attempt_count'] ?? 'N/A'],
+                    ['Received At', $failure['received_at'] ?? 'N/A'],
+                ]
+            );
+            $this->newLine();
+        }
     }
 }

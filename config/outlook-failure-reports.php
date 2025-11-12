@@ -42,10 +42,11 @@ return [
         'folder' => env('OUTLOOK_FOLDER', null),
 
         // Subject line filters (partial match, case-insensitive)
-        'subject_contains' => env('OUTLOOK_SUBJECT_FILTER', 'Undelivered'),
+        // Match Shoutbomb failure report subjects
+        'subject_contains' => env('OUTLOOK_SUBJECT_FILTER', 'Invalid patron phone number'),
 
         // Sender email filters (array or comma-separated)
-        'from_addresses' => env('OUTLOOK_FROM_FILTER', 'postmaster@,mailer-daemon@'),
+        'from_addresses' => env('OUTLOOK_FROM_FILTER', 'shoutbomb.com'),
 
         // Maximum number of emails to process per run
         'max_emails' => env('OUTLOOK_MAX_EMAILS', 50),

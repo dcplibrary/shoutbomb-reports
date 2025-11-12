@@ -17,19 +17,22 @@ return new class extends Migration
             $table->id();
 
             // Outlook message identifiers
-            $table->string('outlook_message_id')->unique()->index();
-            $table->string('original_message_id')->nullable();
-
-            // Email metadata
+            $table->string('outlook_message_id')->index();
             $table->string('subject')->nullable();
             $table->string('from_address')->nullable();
 
+            // Shoutbomb patron details
+            $table->string('patron_phone', 20)->nullable()->index();
+            $table->string('patron_id', 50)->nullable()->index();
+            $table->string('patron_barcode', 50)->nullable()->index();
+            $table->string('patron_name')->nullable();
+
             // Failure details
-            $table->string('recipient_email')->nullable()->index();
-            $table->string('patron_identifier')->nullable()->index();
-            $table->string('notice_type')->nullable()->index(); // SMS, Voice, Email
+            $table->string('notice_type', 20)->nullable()->index(); // SMS, Voice, etc.
+            $table->string('failure_type', 50)->nullable()->index(); // opted-out, invalid, voice-not-delivered
             $table->text('failure_reason')->nullable();
-            $table->string('error_code', 50)->nullable();
+            $table->string('notice_description')->nullable(); // For voice failures
+            $table->integer('attempt_count')->nullable();
 
             // Timestamps
             $table->timestamp('received_at')->nullable()->index();
@@ -40,9 +43,13 @@ return new class extends Migration
 
             $table->timestamps();
 
-            // Indexes for common queries
+            // Composite indexes for common queries
+            $table->index(['failure_type', 'received_at']);
             $table->index(['notice_type', 'received_at']);
-            $table->index(['error_code', 'received_at']);
+            $table->index(['patron_phone', 'received_at']);
+
+            // Unique constraint: same failure shouldn't be recorded twice from same email
+            $table->unique(['outlook_message_id', 'patron_phone', 'patron_id'], 'unique_failure_per_email');
         });
     }
 

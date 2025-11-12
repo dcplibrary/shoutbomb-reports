@@ -13,12 +13,15 @@ class NoticeFailureReport extends Model
         'outlook_message_id',
         'subject',
         'from_address',
-        'recipient_email',
-        'patron_identifier',
+        'patron_phone',
+        'patron_id',
+        'patron_barcode',
+        'patron_name',
         'notice_type',
+        'failure_type',
         'failure_reason',
-        'error_code',
-        'original_message_id',
+        'notice_description',
+        'attempt_count',
         'received_at',
         'processed_at',
         'raw_content',
@@ -27,6 +30,7 @@ class NoticeFailureReport extends Model
     protected $casts = [
         'received_at' => 'datetime',
         'processed_at' => 'datetime',
+        'attempt_count' => 'integer',
     ];
 
     /**
@@ -54,6 +58,42 @@ class NoticeFailureReport extends Model
     }
 
     /**
+     * Scope to get reports by failure type
+     */
+    public function scopeByFailureType($query, string $type)
+    {
+        return $query->where('failure_type', $type);
+    }
+
+    /**
+     * Scope to get opted-out patrons
+     */
+    public function scopeOptedOut($query)
+    {
+        return $query->where('failure_type', 'opted-out');
+    }
+
+    /**
+     * Scope to get invalid phone numbers
+     */
+    public function scopeInvalid($query)
+    {
+        return $query->where('failure_type', 'invalid');
+    }
+
+    /**
+     * Scope to get reports for a specific patron
+     */
+    public function scopeForPatron($query, string $patronIdOrPhone)
+    {
+        return $query->where(function ($q) use ($patronIdOrPhone) {
+            $q->where('patron_id', $patronIdOrPhone)
+              ->orWhere('patron_phone', $patronIdOrPhone)
+              ->orWhere('patron_barcode', $patronIdOrPhone);
+        });
+    }
+
+    /**
      * Scope to get recent reports
      */
     public function scopeRecent($query, int $days = 7)
@@ -68,5 +108,21 @@ class NoticeFailureReport extends Model
     {
         $this->processed_at = now();
         return $this->save();
+    }
+
+    /**
+     * Check if this is an opted-out failure
+     */
+    public function isOptedOut(): bool
+    {
+        return $this->failure_type === 'opted-out';
+    }
+
+    /**
+     * Check if this is an invalid phone number
+     */
+    public function isInvalid(): bool
+    {
+        return $this->failure_type === 'invalid';
     }
 }
