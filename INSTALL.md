@@ -12,17 +12,17 @@ Step-by-step guide to install and configure the Outlook Failure Reports package.
 ## Step 1: Install Package
 
 ```bash
-composer require dcplibrary/outlook-failure-reports
+composer require dcplibrary/shoutbomb-failure-reports
 ```
 
 ## Step 2: Publish Assets
 
 ```bash
 # Publish config file
-php artisan vendor:publish --tag=outlook-failure-reports-config
+php artisan vendor:publish --tag=shoutbomb-failure-reports-config
 
 # Publish and run migrations
-php artisan vendor:publish --tag=outlook-failure-reports-migrations
+php artisan vendor:publish --tag=shoutbomb-failure-reports-migrations
 php artisan migrate
 ```
 
@@ -77,10 +77,10 @@ From the **Overview** page, copy:
 Add these lines to your `.env` file:
 
 ```env
-OUTLOOK_TENANT_ID=paste-your-tenant-id-here
-OUTLOOK_CLIENT_ID=paste-your-client-id-here
-OUTLOOK_CLIENT_SECRET=paste-your-client-secret-here
-OUTLOOK_USER_EMAIL=your-monitored-mailbox@dcplibrary.org
+SHOUTBOMB_TENANT_ID=paste-your-tenant-id-here
+SHOUTBOMB_CLIENT_ID=paste-your-client-id-here
+SHOUTBOMB_CLIENT_SECRET=paste-your-client-secret-here
+SHOUTBOMB_USER_EMAIL=your-monitored-mailbox@dcplibrary.org
 ```
 
 ### B. Configure Filters (Optional)
@@ -89,16 +89,16 @@ Customize how emails are filtered:
 
 ```env
 # Only look at undelivered emails
-OUTLOOK_SUBJECT_FILTER=Undelivered
+SHOUTBOMB_SUBJECT_FILTER=Undelivered
 
 # Filter by sender
-OUTLOOK_FROM_FILTER=postmaster@,mailer-daemon@
+SHOUTBOMB_FROM_FILTER=postmaster@,mailer-daemon@
 
 # Process unread only
-OUTLOOK_UNREAD_ONLY=true
+SHOUTBOMB_UNREAD_ONLY=true
 
 # Mark as read after processing
-OUTLOOK_MARK_AS_READ=true
+SHOUTBOMB_MARK_AS_READ=true
 ```
 
 ## Step 5: Test the Setup
@@ -106,7 +106,7 @@ OUTLOOK_MARK_AS_READ=true
 ### Test with Dry Run
 
 ```bash
-php artisan outlook:check-failure-reports --dry-run
+php artisan shoutbomb:check-failure-reports --dry-run
 ```
 
 This will:
@@ -152,7 +152,7 @@ Processing complete!
 Once dry-run looks good:
 
 ```bash
-php artisan outlook:check-failure-reports
+php artisan shoutbomb:check-failure-reports
 ```
 
 Verify data in database:
@@ -172,7 +172,7 @@ Edit `app/Console/Kernel.php`:
 protected function schedule(Schedule $schedule)
 {
     // Check for failure reports every 15 minutes during business hours
-    $schedule->command('outlook:check-failure-reports')
+    $schedule->command('shoutbomb:check-failure-reports')
         ->everyFifteenMinutes()
         ->weekdays()
         ->between('8:00', '18:00')
@@ -185,7 +185,7 @@ Or for 24/7 monitoring:
 ```php
 protected function schedule(Schedule $schedule)
 {
-    $schedule->command('outlook:check-failure-reports')
+    $schedule->command('shoutbomb:check-failure-reports')
         ->hourly()
         ->withoutOverlapping();
 }
@@ -199,7 +199,7 @@ protected function schedule(Schedule $schedule)
 2. Update `.env`:
 
 ```env
-OUTLOOK_MOVE_TO_FOLDER=Processed Failure Reports
+SHOUTBOMB_MOVE_TO_FOLDER=Processed Failure Reports
 ```
 
 Now processed emails will automatically move to that folder.
@@ -213,7 +213,7 @@ In Outlook, create a rule to move failure reports to a specific folder:
 3. Update `.env`:
 
 ```env
-OUTLOOK_FOLDER=Failure Reports
+SHOUTBOMB_FOLDER=Failure Reports
 ```
 
 ## Troubleshooting
@@ -223,9 +223,9 @@ OUTLOOK_FOLDER=Failure Reports
 **Problem**: Azure AD authentication failed
 
 **Solutions**:
-- Verify `OUTLOOK_TENANT_ID` is correct
-- Verify `OUTLOOK_CLIENT_ID` is correct
-- Verify `OUTLOOK_CLIENT_SECRET` is correct and not expired
+- Verify `SHOUTBOMB_TENANT_ID` is correct
+- Verify `SHOUTBOMB_CLIENT_ID` is correct
+- Verify `SHOUTBOMB_CLIENT_SECRET` is correct and not expired
 - Check that admin consent was granted
 
 ### "403 Forbidden"
@@ -243,12 +243,12 @@ OUTLOOK_FOLDER=Failure Reports
 **Problem**: Filters are too restrictive or no matching emails
 
 **Solutions**:
-- Check `OUTLOOK_USER_EMAIL` is correct
+- Check `SHOUTBOMB_USER_EMAIL` is correct
 - Temporarily remove filters:
   ```env
-  OUTLOOK_SUBJECT_FILTER=
-  OUTLOOK_FROM_FILTER=
-  OUTLOOK_UNREAD_ONLY=false
+  SHOUTBOMB_SUBJECT_FILTER=
+  SHOUTBOMB_FROM_FILTER=
+  SHOUTBOMB_UNREAD_ONLY=false
   ```
 - Check the mailbox has actual emails
 
@@ -257,9 +257,9 @@ OUTLOOK_FOLDER=Failure Reports
 **Problem**: Email format doesn't match parsing patterns
 
 **Solutions**:
-- Enable raw content storage: `OUTLOOK_STORE_RAW=true`
+- Enable raw content storage: `SHOUTBOMB_STORE_RAW=true`
 - Run with dry-run and examine output
-- Customize parsing patterns in `config/outlook-failure-reports.php`
+- Customize parsing patterns in `config/shoutbomb-failure-reports.php`
 - Check `storage/logs/laravel.log` for details
 
 ### Client Secret Expired
@@ -270,7 +270,7 @@ OUTLOOK_FOLDER=Failure Reports
 - Go to Azure Portal → Your app → Certificates & secrets
 - Delete old secret
 - Create new secret
-- Update `OUTLOOK_CLIENT_SECRET` in `.env`
+- Update `SHOUTBOMB_CLIENT_SECRET` in `.env`
 
 ## Next Steps
 
@@ -282,7 +282,7 @@ OUTLOOK_FOLDER=Failure Reports
 ## Getting Help
 
 - Check `storage/logs/laravel.log` for detailed errors
-- Enable debug mode: `OUTLOOK_LOG_PROCESSING=true`
+- Enable debug mode: `SHOUTBOMB_LOG_PROCESSING=true`
 - Review [Microsoft Graph API docs](https://docs.microsoft.com/en-us/graph/)
 - Open an issue on GitHub
 

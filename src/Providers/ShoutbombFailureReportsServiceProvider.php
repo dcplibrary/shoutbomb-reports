@@ -1,12 +1,12 @@
 <?php
 
-namespace Dcplibrary\OutlookFailureReports\Providers;
+namespace Dcplibrary\ShoutbombFailureReports\Providers;
 
-use Dcplibrary\OutlookFailureReports\Commands\CheckFailureReportsCommand;
-use Dcplibrary\OutlookFailureReports\Services\GraphApiService;
+use Dcplibrary\ShoutbombFailureReports\Commands\CheckFailureReportsCommand;
+use Dcplibrary\ShoutbombFailureReports\Services\GraphApiService;
 use Illuminate\Support\ServiceProvider;
 
-class OutlookFailureReportsServiceProvider extends ServiceProvider
+class ShoutbombFailureReportsServiceProvider extends ServiceProvider
 {
     /**
      * Register services.
@@ -15,14 +15,14 @@ class OutlookFailureReportsServiceProvider extends ServiceProvider
     {
         // Merge config
         $this->mergeConfigFrom(
-            __DIR__ . '/../../config/outlook-failure-reports.php',
-            'outlook-failure-reports'
+            __DIR__ . '/../../config/shoutbomb-failure-reports.php',
+            'shoutbomb-failure-reports'
         );
 
         // Register GraphApiService as singleton
         $this->app->singleton(GraphApiService::class, function ($app) {
             return new GraphApiService(
-                config('outlook-failure-reports.graph')
+                config('shoutbomb-failure-reports.graph')
             );
         });
     }
@@ -34,13 +34,13 @@ class OutlookFailureReportsServiceProvider extends ServiceProvider
     {
         // Publish config
         $this->publishes([
-            __DIR__ . '/../../config/outlook-failure-reports.php' => config_path('outlook-failure-reports.php'),
-        ], 'outlook-failure-reports-config');
+            __DIR__ . '/../../config/shoutbomb-failure-reports.php' => config_path('shoutbomb-failure-reports.php'),
+        ], 'shoutbomb-failure-reports-config');
 
         // Publish migrations
         $this->publishes([
             __DIR__ . '/../database/migrations/' => database_path('migrations'),
-        ], 'outlook-failure-reports-migrations');
+        ], 'shoutbomb-failure-reports-migrations');
 
         // Load migrations
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');

@@ -1,4 +1,4 @@
-# Outlook Failure Reports Package
+# Shoutbomb Failure Reports Package
 
 A Laravel package for reading and parsing email delivery failure reports from Microsoft 365 Outlook using the Microsoft Graph API. Designed specifically to integrate with the [Daviess County Public Library Notices Package](https://github.com/dcplibrary/notices) to track SMS and Voice notification failures.
 
@@ -41,21 +41,21 @@ When SMS or Voice notices fail to deliver, providers like Shoutbomb send failure
 ### 1. Install via Composer
 
 ```bash
-composer require dcplibrary/outlook-failure-reports
+composer require dcplibrary/shoutbomb-failure-reports
 ```
 
 ### 2. Publish Configuration
 
 ```bash
-php artisan vendor:publish --tag=outlook-failure-reports-config
+php artisan vendor:publish --tag=shoutbomb-failure-reports-config
 ```
 
-This creates `config/outlook-failure-reports.php`
+This creates `config/shoutbomb-failure-reports.php`
 
 ### 3. Publish Migrations
 
 ```bash
-php artisan vendor:publish --tag=outlook-failure-reports-migrations
+php artisan vendor:publish --tag=shoutbomb-failure-reports-migrations
 php artisan migrate
 ```
 
@@ -105,31 +105,31 @@ Add these to your `.env` file:
 
 ```env
 # Azure AD Configuration
-OUTLOOK_TENANT_ID=your-tenant-id
-OUTLOOK_CLIENT_ID=your-client-id
-OUTLOOK_CLIENT_SECRET=your-client-secret
+SHOUTBOMB_TENANT_ID=your-tenant-id
+SHOUTBOMB_CLIENT_ID=your-client-id
+SHOUTBOMB_CLIENT_SECRET=your-client-secret
 
 # User mailbox to monitor
-OUTLOOK_USER_EMAIL=your-email@dcplibrary.org
+SHOUTBOMB_USER_EMAIL=your-email@dcplibrary.org
 
 # Email Filtering
-OUTLOOK_FOLDER=null                    # null for inbox, or folder name
-OUTLOOK_SUBJECT_FILTER=Undelivered     # Filter by subject
-OUTLOOK_FROM_FILTER=postmaster@,mailer-daemon@
-OUTLOOK_MAX_EMAILS=50
-OUTLOOK_UNREAD_ONLY=true
-OUTLOOK_MARK_AS_READ=true
-OUTLOOK_MOVE_TO_FOLDER=null            # Move to folder after processing
+SHOUTBOMB_FOLDER=null                    # null for inbox, or folder name
+SHOUTBOMB_SUBJECT_FILTER=Undelivered     # Filter by subject
+SHOUTBOMB_FROM_FILTER=postmaster@,mailer-daemon@
+SHOUTBOMB_MAX_EMAILS=50
+SHOUTBOMB_UNREAD_ONLY=true
+SHOUTBOMB_MARK_AS_READ=true
+SHOUTBOMB_MOVE_TO_FOLDER=null            # Move to folder after processing
 
 # Storage
-OUTLOOK_FAILURE_TABLE=notice_failure_reports
-OUTLOOK_STORE_RAW=false                # Store raw email content (for debugging)
-OUTLOOK_LOG_PROCESSING=true
+SHOUTBOMB_FAILURE_TABLE=notice_failure_reports
+SHOUTBOMB_STORE_RAW=false                # Store raw email content (for debugging)
+SHOUTBOMB_LOG_PROCESSING=true
 ```
 
 ### Config File
 
-The published config file (`config/outlook-failure-reports.php`) contains:
+The published config file (`config/shoutbomb-failure-reports.php`) contains:
 
 - **Graph API settings** - Tenant, client credentials, API version
 - **Filtering rules** - Subject, sender, folder filters
@@ -145,20 +145,20 @@ You can customize parsing patterns for your specific failure report formats.
 Check for new failure reports and process them:
 
 ```bash
-php artisan outlook:check-failure-reports
+php artisan shoutbomb:check-failure-reports
 ```
 
 ### Command Options
 
 ```bash
 # Dry run - see what would be processed without saving
-php artisan outlook:check-failure-reports --dry-run
+php artisan shoutbomb:check-failure-reports --dry-run
 
 # Limit number of emails to process
-php artisan outlook:check-failure-reports --limit=10
+php artisan shoutbomb:check-failure-reports --limit=10
 
 # Force mark as read (override config)
-php artisan outlook:check-failure-reports --mark-read
+php artisan shoutbomb:check-failure-reports --mark-read
 ```
 
 ### Scheduled Execution
@@ -169,13 +169,13 @@ Add to `app/Console/Kernel.php`:
 protected function schedule(Schedule $schedule)
 {
     // Check every 15 minutes during business hours
-    $schedule->command('outlook:check-failure-reports')
+    $schedule->command('shoutbomb:check-failure-reports')
         ->everyFifteenMinutes()
         ->weekdays()
         ->between('8:00', '18:00');
 
     // Or check every hour
-    $schedule->command('outlook:check-failure-reports')
+    $schedule->command('shoutbomb:check-failure-reports')
         ->hourly();
 }
 ```
@@ -279,7 +279,7 @@ The `notice_failure_reports` table contains:
 
 ### Custom Patterns
 
-Edit `config/outlook-failure-reports.php` to add custom regex patterns:
+Edit `config/shoutbomb-failure-reports.php` to add custom regex patterns:
 
 ```php
 'parsing' => [
@@ -332,7 +332,7 @@ class CustomFailureParser extends FailureReportParser
 - Test with `--dry-run` to see what would be processed
 
 **"Failed to parse"**
-- Enable raw content storage: `OUTLOOK_STORE_RAW=true`
+- Enable raw content storage: `SHOUTBOMB_STORE_RAW=true`
 - Check logs: `storage/logs/laravel.log`
 - Adjust parsing patterns in config
 
@@ -345,15 +345,15 @@ class CustomFailureParser extends FailureReportParser
 Enable debug logging:
 
 ```env
-OUTLOOK_LOG_PROCESSING=true
-OUTLOOK_STORE_RAW=true
+SHOUTBOMB_LOG_PROCESSING=true
+SHOUTBOMB_STORE_RAW=true
 LOG_LEVEL=debug
 ```
 
 Run with dry-run to see parsed data:
 
 ```bash
-php artisan outlook:check-failure-reports --dry-run
+php artisan shoutbomb:check-failure-reports --dry-run
 ```
 
 ## Security Considerations
@@ -369,7 +369,7 @@ php artisan outlook:check-failure-reports --dry-run
 Create a test failure report email and send it to your monitored inbox, then run:
 
 ```bash
-php artisan outlook:check-failure-reports --dry-run
+php artisan shoutbomb:check-failure-reports --dry-run
 ```
 
 Verify the parsing is correct before running without `--dry-run`.

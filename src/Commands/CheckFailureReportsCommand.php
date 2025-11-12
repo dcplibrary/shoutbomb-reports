@@ -1,17 +1,17 @@
 <?php
 
-namespace Dcplibrary\OutlookFailureReports\Commands;
+namespace Dcplibrary\ShoutbombFailureReports\Commands;
 
-use Dcplibrary\OutlookFailureReports\Models\NoticeFailureReport;
-use Dcplibrary\OutlookFailureReports\Parsers\FailureReportParser;
-use Dcplibrary\OutlookFailureReports\Services\GraphApiService;
+use Dcplibrary\ShoutbombFailureReports\Models\NoticeFailureReport;
+use Dcplibrary\ShoutbombFailureReports\Parsers\FailureReportParser;
+use Dcplibrary\ShoutbombFailureReports\Services\GraphApiService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class CheckFailureReportsCommand extends Command
 {
-    protected $signature = 'outlook:check-failure-reports
+    protected $signature = 'shoutbomb:check-failure-reports
                             {--dry-run : Display what would be processed without saving}
                             {--limit= : Maximum number of emails to process}
                             {--mark-read : Mark processed emails as read}';
@@ -30,11 +30,11 @@ class CheckFailureReportsCommand extends Command
 
     public function handle(): int
     {
-        $this->info('Starting Outlook failure report check...');
+        $this->info('Starting Shoutbomb failure report check...');
 
         try {
             // Get filters from config
-            $filters = config('outlook-failure-reports.filters');
+            $filters = config('shoutbomb-failure-reports.filters');
 
             // Override with command options
             if ($limit = $this->option('limit')) {
@@ -119,7 +119,7 @@ class CheckFailureReportsCommand extends Command
         $failures = $this->parser->parse($message, $bodyContent);
 
         if (empty($failures)) {
-            if (config('outlook-failure-reports.storage.log_processing')) {
+            if (config('shoutbomb-failure-reports.storage.log_processing')) {
                 Log::info('Skipped message - no failures parsed', [
                     'subject' => $message['subject'] ?? 'unknown',
                 ]);
@@ -129,7 +129,7 @@ class CheckFailureReportsCommand extends Command
 
         // Check if this email has already been processed
         if ($this->isEmailProcessed($message['id'])) {
-            if (config('outlook-failure-reports.storage.log_processing')) {
+            if (config('shoutbomb-failure-reports.storage.log_processing')) {
                 Log::info('Skipped message - email already processed', [
                     'message_id' => $message['id'],
                 ]);
@@ -174,7 +174,7 @@ class CheckFailureReportsCommand extends Command
 
             DB::commit();
 
-            if (config('outlook-failure-reports.storage.log_processing')) {
+            if (config('shoutbomb-failure-reports.storage.log_processing')) {
                 Log::info('Processed Shoutbomb report', [
                     'email_subject' => $message['subject'] ?? 'unknown',
                     'failures_saved' => $saved,

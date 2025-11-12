@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $tableName = config('outlook-failure-reports.storage.table_name', 'notice_failure_reports');
+        $tableName = config('shoutbomb-failure-reports.storage.table_name', 'notice_failure_reports');
 
         Schema::create($tableName, function (Blueprint $table) {
             $table->id();
@@ -58,7 +58,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        $tableName = config('outlook-failure-reports.storage.table_name', 'notice_failure_reports');
+        $tableName = config('shoutbomb-failure-reports.storage.table_name', 'notice_failure_reports');
         Schema::dropIfExists($tableName);
     }
 };

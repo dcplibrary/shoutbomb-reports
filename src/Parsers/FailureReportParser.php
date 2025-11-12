@@ -1,6 +1,6 @@
 <?php
 
-namespace Dcplibrary\OutlookFailureReports\Parsers;
+namespace Dcplibrary\ShoutbombFailureReports\Parsers;
 
 use Illuminate\Support\Facades\Log;
 
@@ -10,7 +10,7 @@ class FailureReportParser
 
     public function __construct(array $config = [])
     {
-        $this->config = $config ?: config('outlook-failure-reports.parsing', []);
+        $this->config = $config ?: config('shoutbomb-failure-reports.parsing', []);
     }
 
     /**
@@ -44,7 +44,7 @@ class FailureReportParser
             'subject' => $message['subject'] ?? null,
             'received_at' => $message['receivedDateTime'] ?? null,
             'from_address' => $message['from']['emailAddress']['address'] ?? null,
-            'raw_content' => config('outlook-failure-reports.storage.store_raw_content', false)
+            'raw_content' => config('shoutbomb-failure-reports.storage.store_raw_content', false)
                 ? $bodyContent
                 : null,
         ];

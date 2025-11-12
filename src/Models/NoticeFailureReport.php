@@ -1,6 +1,6 @@
 <?php
 
-namespace Dcplibrary\OutlookFailureReports\Models;
+namespace Dcplibrary\ShoutbombFailureReports\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -38,7 +38,7 @@ class NoticeFailureReport extends Model
      */
     public function getTable()
     {
-        return config('outlook-failure-reports.storage.table_name', 'notice_failure_reports');
+        return config('shoutbomb-failure-reports.storage.table_name', 'notice_failure_reports');
     }
 
     /**

@@ -1,6 +1,6 @@
 <?php
 
-namespace Dcplibrary\OutlookFailureReports\Services;
+namespace Dcplibrary\ShoutbombFailureReports\Services;
 
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Cache;

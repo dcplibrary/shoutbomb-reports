@@ -11,7 +11,7 @@ Create a command to match failure reports with sent notices:
 
 namespace App\Console\Commands;
 
-use Dcplibrary\OutlookFailureReports\Models\NoticeFailureReport;
+use Dcplibrary\ShoutbombFailureReports\Models\NoticeFailureReport;
 use App\Models\Notice; // Your notice model
 use Illuminate\Console\Command;
 
@@ -80,7 +80,7 @@ Schedule it to run after checking for failures:
 // app/Console/Kernel.php
 protected function schedule(Schedule $schedule)
 {
-    $schedule->command('outlook:check-failure-reports')->hourly();
+    $schedule->command('shoutbomb:check-failure-reports')->hourly();
     $schedule->command('notices:link-failure-reports')->hourly()->delay(5); // 5 min after
 }
 ```
@@ -92,7 +92,7 @@ protected function schedule(Schedule $schedule)
 
 namespace App\Http\Controllers;
 
-use Dcplibrary\OutlookFailureReports\Models\NoticeFailureReport;
+use Dcplibrary\ShoutbombFailureReports\Models\NoticeFailureReport;
 use Illuminate\Http\Request;
 
 class FailureReportsController extends Controller
@@ -206,7 +206,7 @@ Create a widget for your dashboard showing recent failures:
 
 namespace App\View\Components;
 
-use Dcplibrary\OutlookFailureReports\Models\NoticeFailureReport;
+use Dcplibrary\ShoutbombFailureReports\Models\NoticeFailureReport;
 use Illuminate\View\Component;
 
 class FailureReportsWidget extends Component
@@ -312,7 +312,7 @@ Route::middleware('auth:sanctum')->group(function () {
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Dcplibrary\OutlookFailureReports\Models\NoticeFailureReport;
+use Dcplibrary\ShoutbombFailureReports\Models\NoticeFailureReport;
 use Illuminate\Http\Request;
 
 class FailureReportsApiController extends Controller
@@ -375,7 +375,7 @@ Dispatch events when failure reports are processed:
 
 namespace App\Events;
 
-use Dcplibrary\OutlookFailureReports\Models\NoticeFailureReport;
+use Dcplibrary\ShoutbombFailureReports\Models\NoticeFailureReport;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
@@ -448,7 +448,7 @@ event(new FailureReportProcessed($report));
 
 namespace App\Console\Commands;
 
-use Dcplibrary\OutlookFailureReports\Models\NoticeFailureReport;
+use Dcplibrary\ShoutbombFailureReports\Models\NoticeFailureReport;
 use Illuminate\Console\Command;
 
 class FailureReportSummaryCommand extends Command

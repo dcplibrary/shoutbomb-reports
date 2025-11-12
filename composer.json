@@ -1,8 +1,8 @@
 {
-    "name": "dcplibrary/outlook-failure-reports",
-    "description": "Laravel package to read and parse failure reports from Microsoft 365 Outlook using Graph API",
+    "name": "dcplibrary/shoutbomb-failure-reports",
+    "description": "Laravel package to ingest and parse Shoutbomb failure reports from Microsoft 365 Outlook using Graph API",
     "type": "library",
-    "keywords": ["laravel", "microsoft-graph", "outlook", "email", "failure-reports"],
+    "keywords": ["laravel", "shoutbomb", "microsoft-graph", "outlook", "sms", "voice", "failure-reports"],
     "license": "MIT",
     "authors": [
         {
@@ -22,18 +22,18 @@
     },
     "autoload": {
         "psr-4": {
-            "Dcplibrary\\OutlookFailureReports\\": "src/"
+            "Dcplibrary\\ShoutbombFailureReports\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Dcplibrary\\OutlookFailureReports\\Tests\\": "tests/"
+            "Dcplibrary\\ShoutbombFailureReports\\Tests\\": "tests/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Dcplibrary\\OutlookFailureReports\\Providers\\OutlookFailureReportsServiceProvider"
+                "Dcplibrary\\ShoutbombFailureReports\\Providers\\ShoutbombFailureReportsServiceProvider"
             ]
         }
     },

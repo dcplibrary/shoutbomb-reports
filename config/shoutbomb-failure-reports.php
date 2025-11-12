@@ -13,19 +13,19 @@ return [
 
     'graph' => [
         // Azure AD Tenant ID
-        'tenant_id' => env('OUTLOOK_TENANT_ID'),
+        'tenant_id' => env('SHOUTBOMB_TENANT_ID'),
 
         // Azure AD Application (client) ID
-        'client_id' => env('OUTLOOK_CLIENT_ID'),
+        'client_id' => env('SHOUTBOMB_CLIENT_ID'),
 
         // Azure AD Application client secret
-        'client_secret' => env('OUTLOOK_CLIENT_SECRET'),
+        'client_secret' => env('SHOUTBOMB_CLIENT_SECRET'),
 
         // User email address to access
-        'user_email' => env('OUTLOOK_USER_EMAIL'),
+        'user_email' => env('SHOUTBOMB_USER_EMAIL'),
 
         // Graph API version
-        'api_version' => env('OUTLOOK_API_VERSION', 'v1.0'),
+        'api_version' => env('SHOUTBOMB_API_VERSION', 'v1.0'),
     ],
 
     /*
@@ -39,26 +39,26 @@ return [
 
     'filters' => [
         // Folder to monitor (null for inbox, or specify folder name)
-        'folder' => env('OUTLOOK_FOLDER', null),
+        'folder' => env('SHOUTBOMB_FOLDER', null),
 
         // Subject line filters (partial match, case-insensitive)
         // Match Shoutbomb failure report subjects
-        'subject_contains' => env('OUTLOOK_SUBJECT_FILTER', 'Invalid patron phone number'),
+        'subject_contains' => env('SHOUTBOMB_SUBJECT_FILTER', 'Invalid patron phone number'),
 
         // Sender email filters (array or comma-separated)
-        'from_addresses' => env('OUTLOOK_FROM_FILTER', 'shoutbomb.com'),
+        'from_addresses' => env('SHOUTBOMB_FROM_FILTER', 'shoutbomb.com'),
 
         // Maximum number of emails to process per run
-        'max_emails' => env('OUTLOOK_MAX_EMAILS', 50),
+        'max_emails' => env('SHOUTBOMB_MAX_EMAILS', 50),
 
         // Only process unread emails
-        'unread_only' => env('OUTLOOK_UNREAD_ONLY', true),
+        'unread_only' => env('SHOUTBOMB_UNREAD_ONLY', true),
 
         // Mark emails as read after processing
-        'mark_as_read' => env('OUTLOOK_MARK_AS_READ', true),
+        'mark_as_read' => env('SHOUTBOMB_MARK_AS_READ', true),
 
         // Move processed emails to folder (null to keep in place)
-        'move_to_folder' => env('OUTLOOK_MOVE_TO_FOLDER', null),
+        'move_to_folder' => env('SHOUTBOMB_MOVE_TO_FOLDER', null),
     ],
 
     /*
@@ -103,12 +103,12 @@ return [
 
     'storage' => [
         // Database table name for storing failure reports
-        'table_name' => env('OUTLOOK_FAILURE_TABLE', 'notice_failure_reports'),
+        'table_name' => env('SHOUTBOMB_FAILURE_TABLE', 'notice_failure_reports'),
 
         // Store raw email content for debugging
-        'store_raw_content' => env('OUTLOOK_STORE_RAW', false),
+        'store_raw_content' => env('SHOUTBOMB_STORE_RAW', false),
 
         // Log processing to Laravel log
-        'log_processing' => env('OUTLOOK_LOG_PROCESSING', true),
+        'log_processing' => env('SHOUTBOMB_LOG_PROCESSING', true),
     ],
 ];
