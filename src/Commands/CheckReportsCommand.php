@@ -34,7 +34,7 @@ class CheckReportsCommand extends Command
 
         try {
             // Get filters from config
-            $filters = config('shoutbomb-failure-reports.filters');
+            $filters = config('shoutbomb-failure-reports.filters') ?? [];
 
             // Override with command options
             if ($limit = $this->option('limit')) {
@@ -121,8 +121,11 @@ class CheckReportsCommand extends Command
      * Process a single message (which may contain multiple report records)
      * Returns the number of records processed
      */
-    protected function processMessage(array $message, array $filters): int
+    protected function processMessage(array $message, ?array $filters = []): int
     {
+        // Ensure $filters is an array even if null is passed
+        $filters = $filters ?? [];
+
         // Get message body
         $bodyContent = $this->graphApi->getMessageBody($message, 'text');
 
