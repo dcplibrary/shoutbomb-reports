@@ -81,12 +81,14 @@ class FailureReportParser
 
         // Check subject contains expected keywords
         if (stripos($subject, 'Invalid patron phone number') !== false ||
-            stripos($subject, 'Voice notices that were not delivered') !== false) {
+            stripos($subject, 'Voice notices that were not delivered') !== false ||
+            stripos($subject, 'Shoutbomb Rpt') !== false) {
             return true;
         }
 
-        // Check from Shoutbomb
-        if (stripos($from, 'shoutbomb') !== false) {
+        // Check from Shoutbomb or DCPL Notifications
+        if (stripos($from, 'shoutbomb') !== false ||
+            stripos($from, 'DCPL Notifications') !== false) {
             return true;
         }
 
