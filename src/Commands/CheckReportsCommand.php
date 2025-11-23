@@ -2,7 +2,7 @@
 
 namespace Dcplibrary\ShoutbombFailureReports\Commands;
 
-use Dcplibrary\ShoutbombFailureReports\Models\NoticeFailureReport;
+use Dcplibrary\Notices\Models\NoticeFailureReport;
 use Dcplibrary\ShoutbombFailureReports\Models\ShoutbombMonthlyStat;
 use Dcplibrary\ShoutbombFailureReports\Parsers\FailureReportParser;
 use Dcplibrary\ShoutbombFailureReports\Services\GraphApiService;

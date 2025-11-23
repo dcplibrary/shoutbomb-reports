@@ -1,65 +1,27 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 
+/**
+ * @deprecated This migration has been moved to dcplibrary/notices package.
+ *             The notice_failure_reports table is now managed by the notices package.
+ *             This file will be removed in v2.0.
+ *
+ *             To migrate:
+ *             1. Install dcplibrary/notices package
+ *             2. Run: php artisan migrate (notices package will create the table)
+ *             3. Remove this package's migration from your migrations table if needed
+ */
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        $tableName = config('shoutbomb-reports.storage.table_name', 'notice_failure_reports');
-
-        Schema::create($tableName, function (Blueprint $table) {
-            $table->id();
-
-            // Outlook message identifiers
-            $table->string('outlook_message_id')->index();
-            $table->string('subject')->nullable();
-            $table->string('from_address')->nullable();
-
-            // Shoutbomb patron details
-            $table->string('patron_phone', 20)->nullable()->index();
-            $table->string('patron_id', 50)->nullable()->index();
-            $table->string('patron_barcode', 50)->nullable()->index();
-            $table->string('patron_name')->nullable();
-
-            // Failure details
-            $table->string('notice_type', 20)->nullable()->index(); // SMS, Voice, etc.
-            $table->string('failure_type', 50)->nullable()->index(); // opted-out, invalid, voice-not-delivered
-            $table->text('failure_reason')->nullable();
-            $table->string('account_status', 20)->nullable()->index(); // active, deleted, unavailable
-            $table->string('notice_description')->nullable(); // For voice failures
-            $table->integer('attempt_count')->nullable();
-
-            // Timestamps
-            $table->timestamp('received_at')->nullable()->index();
-            $table->timestamp('processed_at')->nullable()->index();
-
-            // Raw content (optional, for debugging)
-            $table->longText('raw_content')->nullable();
-
-            $table->timestamps();
-
-            // Composite indexes for common queries
-            $table->index(['failure_type', 'received_at']);
-            $table->index(['notice_type', 'received_at']);
-            $table->index(['patron_phone', 'received_at']);
-
-            // Unique constraint: same failure shouldn't be recorded twice from same email
-            $table->unique(['outlook_message_id', 'patron_phone', 'patron_id'], 'unique_failure_per_email');
-        });
+        // Migration moved to dcplibrary/notices package
+        // See: dcplibrary/notices/src/Database/Migrations/2025_11_23_000001_create_notice_failure_reports_table.php
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        $tableName = config('shoutbomb-reports.storage.table_name', 'notice_failure_reports');
-        Schema::dropIfExists($tableName);
+        // Migration moved to dcplibrary/notices package
     }
 };
