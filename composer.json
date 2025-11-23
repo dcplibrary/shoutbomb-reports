@@ -15,7 +15,7 @@
         "illuminate/support": "^11.0|^12.0",
         "guzzlehttp/guzzle": "^7.5",
         "microsoft/microsoft-graph": "^2.0",
-        "dcplibrary/notices": "^1.0"
+        "dcplibrary/notices": "*"
     },
     "require-dev": {
         "orchestra/testbench": "^9.0|^10.0",
@@ -44,6 +44,14 @@
             "tbachert/spi": true
         }
     },
-    "minimum-stability": "stable",
+    "repositories":
+    [
+    	{
+    		"type": "path",
+    		"url":"../notices",
+    		"symlink": true
+    	}
+    ],
+    "minimum-stability": "dev",
     "prefer-stable": true
 }
